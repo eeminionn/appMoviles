@@ -20,6 +20,7 @@ class MainApp extends StatelessWidget {
         backgroundColor: Colors.white,
         appBar: AppBar(
           backgroundColor: Colors.white,
+          scrolledUnderElevation: 0,
           leading: const Icon(Icons.menu),
           title: const Text('Creaciones'),
           actions: const [Icon(Icons.more_vert), SizedBox(width: 16)],
@@ -30,29 +31,74 @@ class MainApp extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Cajas para las dos pestañas de arriba.
+                // Pestañas de arriba.
                 Row(
                   children: [
-                    Expanded(child: Container(height: 30, color: Colors.black)),
-                    const SizedBox(width: 180),
+                    Container(
+                      width: 128,
+                      height: 42,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
+                        color: Colors.black,
+                        borderRadius: BorderRadius.circular(24),
+                      ),
+                      child: const Text(
+                        'Creaciones',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 24),
                     Expanded(
-                      child: Container(height: 30, color: Color(0xFFD9D9D9)),
+                      child: Text(
+                        'Personas',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Espacio del buscador.
-                // Items de busqueda de los productos
+                // Caja del buscador.
                 Container(
                   width: double.infinity,
                   height: 48,
-                  color: Color(0xFFEDEDED),
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Color(0xFFB5B5B5)),
+                    borderRadius: BorderRadius.circular(28),
+                  ),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.search, color: Color(0xFFA5A5A5)),
+                      SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Buscar creaciones',
+                          style: TextStyle(
+                            color: Color(0xFFA5A5A5),
+                            fontSize: 16,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 16),
+                const Divider(color: Color(0xFFEDEDED)),
+                const SizedBox(height: 8),
 
-                // Caja donde va el título de las categorías.
-                Container(width: 220, height: 24, color: Color(0xFFD9D9D9)),
+                // Título de las categorías.
+                const Text(
+                  'Categorías más buscadas',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
                 const SizedBox(height: 16),
 
                 // Primera fila: repostería y verduras.
