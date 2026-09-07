@@ -11,6 +11,10 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
+      // Evita que las cajas se estiren al llegar al inicio o al final.
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        overscroll: false,
+      ),
       title: 'App móviles',
       home: Scaffold(
         backgroundColor: Colors.white,
