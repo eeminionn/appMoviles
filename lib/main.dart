@@ -54,12 +54,12 @@ class MainApp extends StatelessWidget {
                   height: 48,
                   decoration: BoxDecoration(
                     border: Border.all(color: Color(0xFFB5B5B5)),
-                    borderRadius: BorderRadius.circular(28),
+                    borderRadius: BorderRadius.circular(30),
                   ),
                 ),
                 const SizedBox(height: 16),
                 const Divider(color: Color(0xFFEDEDED)),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
 
                 // Caja del título de las categorías.
                 Container(width: 220, height: 24, color: Color(0xFFD9D9D9)),
@@ -69,11 +69,11 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFCC7188)),
+                      child: Container(height: 100, color: Color(0xFFC77D92)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFB6BD48)),
+                      child: Container(height: 100, color: Color(0xFFAEB653)),
                     ),
                   ],
                 ),
@@ -83,7 +83,7 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFF9BA8B4)),
+                      child: Container(height: 100, color: Color(0xFF95A7B8)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -101,7 +101,7 @@ class MainApp extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFE8AC79)),
+                      child: Container(height: 100, color: Color(0xFFE3A580)),
                     ),
                   ],
                 ),
@@ -111,7 +111,7 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFDD6053)),
+                      child: Container(height: 100, color: Color(0xFFD66C60)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -125,11 +125,11 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFCC7188)),
+                      child: Container(height: 100, color: Color(0xFFC77D92)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFB6BD48)),
+                      child: Container(height: 100, color: Color(0xFFAEB653)),
                     ),
                   ],
                 ),
@@ -139,7 +139,7 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFF9BA8B4)),
+                      child: Container(height: 100, color: Color(0xFF95A7B8)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
@@ -157,7 +157,7 @@ class MainApp extends StatelessWidget {
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFE8AC79)),
+                      child: Container(height: 100, color: Color(0xFFE3A580)),
                     ),
                   ],
                 ),
@@ -167,7 +167,7 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 100, color: Color(0xFFDD6053)),
+                      child: Container(height: 100, color: Color(0xFFD66C60)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
