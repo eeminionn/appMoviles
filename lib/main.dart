@@ -29,10 +29,10 @@ class MainApp extends StatelessWidget {
                 // Cajas para las dos pestañas de arriba.
                 Row(
                   children: [
-                    Expanded(child: Container(height: 40, color: Colors.black)),
-                    const SizedBox(width: 16),
+                    Expanded(child: Container(height: 30, color: Colors.black)),
+                    const SizedBox(width: 180),
                     Expanded(
-                      child: Container(height: 40, color: Color(0xFFD9D9D9)),
+                      child: Container(height: 30, color: Color(0xFFD9D9D9)),
                     ),
                   ],
                 ),
@@ -59,6 +59,48 @@ class MainApp extends StatelessWidget {
                     const SizedBox(width: 16),
                     Expanded(
                       child: Container(height: 90, color: Color(0xFFB6BD48)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Segunda fila: pescado y guarnición.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFF9BA8B4)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFFCEB174)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Tercera fila: salsas y aperitivos.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFFC9BDA7)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFFE8AC79)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Cuarta fila: carne y dulce.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFFDD6053)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 90, color: Color(0xFFE9B057)),
                     ),
                   ],
                 ),
