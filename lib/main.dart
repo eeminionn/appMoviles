@@ -15,7 +15,7 @@ class MainApp extends StatelessWidget {
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         overscroll: false,
       ),
-      title: 'App móviles',
+      title: 'E_Abarca',
       home: Scaffold(
         backgroundColor: Colors.white,
         // Esta barra queda fija mientras las cajas se mueven.
