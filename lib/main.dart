@@ -10,21 +10,41 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      //Para que no se buggen la cajas pq sino se estiran xd
       debugShowCheckedModeBanner: false,
-      // Evita que las cajas se estiren al llegar al inicio o al final.
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         overscroll: false,
       ),
       title: 'App móviles',
       home: Scaffold(
         backgroundColor: Colors.white,
+        // Esta barra queda fija mientras las cajas se mueven.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            height: 64,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Color(0xFFEDEDED))),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
+                Container(width: 26, height: 26, color: Color(0xFF16ADA8)),
+                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
+                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
+              ],
+            ),
+          ),
+        ),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Pestañas de arriba.
+                // Pestañas de arribade personas y creaciones
                 Row(
                   children: [
                     Container(
@@ -48,7 +68,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Caja del buscador.
+                // Caja del bsucador
                 Container(
                   width: double.infinity,
                   height: 48,
@@ -61,11 +81,11 @@ class MainApp extends StatelessWidget {
                 const Divider(color: Color(0xFFEDEDED)),
                 const SizedBox(height: 10),
 
-                // Caja del título de las categorías.
+                // titulo de las categorias
                 Container(width: 220, height: 24, color: Color(0xFFD9D9D9)),
                 const SizedBox(height: 16),
 
-                // Primera fila: repostería y verduras.
+                // Primera fila color de verduras y reposteria
                 Row(
                   children: [
                     Expanded(
@@ -79,7 +99,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Segunda fila: pescado y guarnición.
+                // segunda fila pescados y guarnicion
                 Row(
                   children: [
                     Expanded(
@@ -93,7 +113,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Tercera fila: salsas y aperitivos.
+                // 3era fila aperitivos y salsas
                 Row(
                   children: [
                     Expanded(
@@ -107,7 +127,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Cuarta fila: carne y dulce.
+                // 4ta fila carne y dulces
                 Row(
                   children: [
                     Expanded(
@@ -121,7 +141,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Repetimos las cajas para seguir bajando.
+                // copipaste para scroll xd
                 Row(
                   children: [
                     Expanded(
@@ -135,7 +155,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Otra fila de pescado y guarnición.
+                // copipaste para scroll xd
                 Row(
                   children: [
                     Expanded(
@@ -149,7 +169,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Otra fila de salsas y aperitivos.
+                // copipaste para scroll xd
                 Row(
                   children: [
                     Expanded(
@@ -163,7 +183,7 @@ class MainApp extends StatelessWidget {
                 ),
                 const SizedBox(height: 16),
 
-                // Otra fila de carne y dulce.
+                // copipaste para scroll xd
                 Row(
                   children: [
                     Expanded(
