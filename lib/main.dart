@@ -27,13 +27,15 @@ class MainApp extends StatelessWidget {
               color: Colors.white,
               border: Border(top: BorderSide(color: Color(0xFFEDEDED))),
             ),
+
+            //barrita de abajo
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
-                Container(width: 26, height: 26, color: Color(0xFF16ADA8)),
-                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
-                Container(width: 26, height: 26, color: Color(0xFF3E3E3E)),
+                Container(width: 35, height: 35, color: Color(0xFF3E3E3E)),
+                Container(width: 35, height: 35, color: Color(0xFF16ADA8)),
+                Container(width: 35, height: 35, color: Color(0xFF3E3E3E)),
+                Container(width: 35, height: 35, color: Color(0xFF3E3E3E)),
               ],
             ),
           ),
