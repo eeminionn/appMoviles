@@ -39,6 +39,7 @@ class MainApp extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Espacio del buscador.
+                // Items de busqueda de los productos
                 Container(
                   width: double.infinity,
                   height: 48,
@@ -54,11 +55,11 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFCC7188)),
+                      child: Container(height: 100, color: Color(0xFFCC7188)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFB6BD48)),
+                      child: Container(height: 100, color: Color(0xFFB6BD48)),
                     ),
                   ],
                 ),
@@ -68,11 +69,11 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFF9BA8B4)),
+                      child: Container(height: 100, color: Color(0xFF9BA8B4)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFCEB174)),
+                      child: Container(height: 100, color: Color(0xFFCEB174)),
                     ),
                   ],
                 ),
@@ -82,11 +83,11 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFC9BDA7)),
+                      child: Container(height: 100, color: Color(0xFFC9BDA7)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFE8AC79)),
+                      child: Container(height: 100, color: Color(0xFFE8AC79)),
                     ),
                   ],
                 ),
@@ -96,11 +97,67 @@ class MainApp extends StatelessWidget {
                 Row(
                   children: [
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFDD6053)),
+                      child: Container(height: 100, color: Color(0xFFDD6053)),
                     ),
                     const SizedBox(width: 16),
                     Expanded(
-                      child: Container(height: 90, color: Color(0xFFE9B057)),
+                      child: Container(height: 100, color: Color(0xFFE9B057)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Repetimos las cajas para seguir bajando.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFCC7188)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFB6BD48)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Otra fila de pescado y guarnición.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFF9BA8B4)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFCEB174)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Otra fila de salsas y aperitivos.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFC9BDA7)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFE8AC79)),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                // Otra fila de carne y dulce.
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFDD6053)),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Container(height: 100, color: Color(0xFFE9B057)),
                     ),
                   ],
                 ),
