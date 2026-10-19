@@ -7,3 +7,4 @@
 - Validar los cambios relevantes antes de subirlos. Usar `flutter analyze`, las pruebas disponibles y una ejecución en Android cuando corresponda.
 - Para el trabajo autorizado por el usuario, realizar commits con mensajes claros y hacer push a `origin/main`. Revisar el diff antes de cada commit. No usar force push ni reescribir el historial.
 - No incluir compilaciones, cachés, credenciales, tokens ni claves de firma. Respetar `.gitignore` y revisar los archivos que se agregan.
+- Mantener `lib/firebase_options.dart` y `android/app/google-services.json` como configuración local generada por `flutterfire configure`; no versionarlos. Seguir los pasos del README al preparar otro clon.

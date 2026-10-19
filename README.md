@@ -32,7 +32,7 @@ flutter pub get
 flutterfire configure --project=app-flutter-20261019-4d8a --platforms=android --android-package-name=com.example.app_moviles
 ```
 
-Este comando genera `lib/firebase_options.dart` y `android/app/google-services.json`. El archivo `google-services.json` se mantiene local, está ignorado por Git y se genera nuevamente al configurar cada clon.
+Este comando genera `lib/firebase_options.dart` y `android/app/google-services.json`. Ambos archivos se mantienen locales y están ignorados por Git. Cada clon debe ejecutar la configuración de FlutterFire antes de analizar o ejecutar la app.
 
 La base de datos Firestore todavía no está creada; tampoco hay reglas ni operaciones para crear, leer, actualizar o eliminar datos.
 
