@@ -3,6 +3,41 @@ Repo para el ramo Desarrollo De App Móviles con [@joseSantorcuato](https://gith
 
 Este repositorio es la base de la app. Los cambios se incorporan sobre el ejemplo del profesor y se guardan en `main`.
 
+## Referencias de programación
+
+Los [ejemplos originales y la guía de estilo](docs/referencias/README.md) quedan disponibles para consultarlos al desarrollar la app. Mantendremos el estilo simple de esos ejemplos.
+
+## Configurar Firebase en un clon nuevo
+
+La app Android usa el proyecto **APP Flutter** (`app-flutter-20261019-4d8a`) y el paquete `com.example.app_moviles`. `firebase_core` y `cloud_firestore` ya están declarados en las dependencias.
+
+Con Flutter y Node.js/npm instalados, prepara las herramientas e inicia sesión con una cuenta que tenga acceso al proyecto:
+
+```sh
+npm install -g firebase-tools
+npx -y firebase-tools@latest login
+dart pub global activate flutterfire_cli
+```
+
+En macOS, si la terminal no reconoce `flutterfire`, agrega esta línea a `~/.zshrc` y ejecuta `source ~/.zshrc`:
+
+```sh
+export PATH="$PATH:$HOME/.pub-cache/bin"
+```
+
+Desde la carpeta del repositorio, genera la configuración Android:
+
+```sh
+flutter pub get
+flutterfire configure --project=app-flutter-20261019-4d8a --platforms=android --android-package-name=com.example.app_moviles
+```
+
+Este comando genera `lib/firebase_options.dart` y `android/app/google-services.json`. El archivo `google-services.json` se mantiene local, está ignorado por Git y se genera nuevamente al configurar cada clon.
+
+La base de datos Firestore todavía no está creada; tampoco hay reglas ni operaciones para crear, leer, actualizar o eliminar datos.
+
+Referencia: [configuración oficial de Firebase para Flutter](https://firebase.google.com/docs/flutter/setup).
+
 ## Ejecutar en Android
 
 Necesitas Flutter, el SDK de Android y un emulador Android configurado. Desde la carpeta del proyecto, instala las dependencias:
