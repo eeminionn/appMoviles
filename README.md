@@ -65,7 +65,11 @@ Las huellas de depuración obtenidas en esta máquina están en [android-sha-deb
 
 Después, vuelve a la raíz del proyecto y ejecuta otra vez el comando `flutterfire configure` de la sección anterior para actualizar los archivos locales.
 
-El inicio de sesión todavía no está implementado en la interfaz. Al implementarlo, habrá que verificar que Google esté habilitado en Firebase Authentication y que las huellas estén registradas en la app Android; si faltan, agregarlas y volver a configurar FlutterFire. Consulta la [guía de Google para Flutter](https://firebase.google.com/docs/auth/flutter/federated-auth#google).
+La entrada de la app pasa por `lib/auth/auth_gate.dart`: muestra `LoginScreen` cuando no hay sesión y la pantalla original del ejemplo (`HomeScreen`) cuando Firebase reconoce al usuario. La sesión se conserva al volver a abrir la app.
+
+`lib/auth/login_screen.dart` incorpora el ejemplo del profesor para iniciar sesión con correo y contraseña o con Google. El acceso con correo requiere una cuenta existente y el proveedor **Correo electrónico/contraseña** habilitado en Firebase Authentication; esta pantalla no crea cuentas. Para Google, habilita el proveedor **Google**, registra las huellas de la app Android y ejecuta de nuevo `flutterfire configure` para descargar la configuración OAuth. La inicialización de Google se espera una sola vez antes del primer intento de acceso.
+
+El diseño original se conserva en `lib/views/home_screen.dart`. `lib/theme/theme.dart` contiene los espacios compartidos que usa el formulario. Consulta la [guía de Google para Flutter](https://firebase.google.com/docs/auth/flutter/federated-auth#google).
 
 ## Ejecutar en Android
 
