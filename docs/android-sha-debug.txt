@@ -1,0 +1,17 @@
+Huellas de firma de Android — appMoviles
+
+Fecha: 2 de noviembre de 2026
+Paquete Android: com.example.app_moviles
+Proyecto Firebase: app-flutter-20261019-4d8a
+Certificado: depuración (debug) de esta máquina
+Comando utilizado desde android/: ./gradlew signingReport
+
+SHA1:
+6B:42:34:51:E9:2A:03:0F:35:5D:C2:E5:28:1D:84:50:67:FE:EB:CD
+
+SHA256:
+F4:EC:0D:32:DB:35:08:F2:A3:A4:01:08:45:19:E7:EA:C8:A1:40:40:91:CA:A0:72:BC:9A:E3:DF:34:85:FF:B4
+
+Las variantes debug, profile y release usan actualmente este mismo certificado
+de depuración. Estas huellas no corresponden a una firma de producción.
+Las huellas identifican el certificado; este archivo no contiene la clave privada.

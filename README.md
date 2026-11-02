@@ -38,6 +38,35 @@ La base de datos Firestore todavía no está creada; tampoco hay reglas ni opera
 
 Referencia: [configuración oficial de Firebase para Flutter](https://firebase.google.com/docs/flutter/setup).
 
+## Autenticación y huellas Android
+
+`firebase_auth` y `google_sign_in` ya están agregados. Los comandos para incorporarlos son:
+
+```sh
+flutter pub add firebase_auth
+flutter pub add google_sign_in
+```
+
+Para obtener SHA-1 y SHA-256, abre la carpeta `android` desde la raíz del proyecto y ejecuta el reporte de firma. En macOS o Linux:
+
+```sh
+cd android
+./gradlew signingReport
+```
+
+En Windows (PowerShell):
+
+```powershell
+cd android
+.\gradlew.bat signingReport
+```
+
+Las huellas de depuración obtenidas en esta máquina están en [android-sha-debug.txt](docs/android-sha-debug.txt). La variante `release` actualmente usa la misma firma `debug`; estas huellas no corresponden a un certificado de producción.
+
+Después, vuelve a la raíz del proyecto y ejecuta otra vez el comando `flutterfire configure` de la sección anterior para actualizar los archivos locales.
+
+El inicio de sesión todavía no está implementado en la interfaz. Al implementarlo, habrá que verificar que Google esté habilitado en Firebase Authentication y que las huellas estén registradas en la app Android; si faltan, agregarlas y volver a configurar FlutterFire. Consulta la [guía de Google para Flutter](https://firebase.google.com/docs/auth/flutter/federated-auth#google).
+
 ## Ejecutar en Android
 
 Necesitas Flutter, el SDK de Android y un emulador Android configurado. Desde la carpeta del proyecto, instala las dependencias:
