@@ -1,5 +1,6 @@
 import 'package:app_moviles/firebase_options.dart';
 import 'package:app_moviles/main.dart';
+import 'package:app_moviles/mapa.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -14,7 +15,6 @@ const _hostLocal = '10.0.2.2';
 const _plazo = Duration(seconds: 20);
 const _servidor = GetOptions(source: Source.server);
 const _capturas = bool.fromEnvironment('CAPTURAS');
-const _verificarUbicacion = bool.fromEnvironment('VERIFICAR_UBICACION');
 
 void main() {
   // Nunca ejecutar esta prueba contra el proyecto remoto.
@@ -77,7 +77,7 @@ void main() {
     await _tocar(tester, _boton('Crear cuenta'));
     await _esperar(tester, find.byTooltip('Abrir menú'));
     expect(find.text('Corregir mapa'), findsNothing);
-    if (_verificarUbicacion) await _probarUbicacion(tester);
+    await _probarPuntoUdd(tester);
     await _capturar(tester, 'inicio');
     final usuario = authLocal!.currentUser!;
     expect(usuario.email, correo);
@@ -94,36 +94,32 @@ void main() {
   });
 }
 
-Future<void> _probarUbicacion(WidgetTester tester) async {
-  // Emulador con permiso de ubicación precisa y este punto enviado por ADB:
-  // adb emu geo fix -70.5740 -33.4110
-  const posicion = LatLng(-33.4110, -70.5740);
+Future<void> _probarPuntoUdd(WidgetTester tester) async {
   const margen = 0.001;
-  bool cerca(LatLng punto) =>
-      (punto.latitude - posicion.latitude).abs() < margen &&
-      (punto.longitude - posicion.longitude).abs() < margen;
-
-  await _tocar(tester, find.byTooltip('Mi ubicación'));
-  await _esperar(tester, find.byTooltip('Tu ubicación'));
-  await _esperar(
-    tester,
-    find.byWidgetPredicate(
-      (widget) =>
-          widget is MarkerLayer &&
-          widget.markers.any((marcador) => cerca(marcador.point)),
-      description: 'marcador en la coordenada GPS enviada al emulador',
-    ),
+  bool cercaDeLaUdd(LatLng punto) =>
+      (punto.latitude - centroMapa.latitude).abs() < margen &&
+      (punto.longitude - centroMapa.longitude).abs() < margen;
+  final marcadorUdd = find.byWidgetPredicate(
+    (widget) =>
+        widget is MarkerLayer &&
+        widget.markers.any((marcador) => marcador.point == centroMapa),
+    description: 'marcador fijo en la UDD',
   );
+  await _esperar(tester, find.byTooltip('Universidad del Desarrollo'));
+  expect(marcadorUdd, findsOneWidget);
 
   final mapa = tester
       .widget<FlutterMap>(find.byType(FlutterMap))
       .mapController!;
-  mapa.move(const LatLng(-33.42, -70.5740), mapa.camera.zoom);
+  mapa.move(
+    LatLng(centroMapa.latitude - 0.01, centroMapa.longitude),
+    mapa.camera.zoom,
+  );
   await tester.pump();
-  expect(cerca(mapa.camera.center), isFalse);
-  await _tocar(tester, find.byTooltip('Mi ubicación'));
-  expect(cerca(mapa.camera.center), isTrue);
-  await _capturar(tester, 'ubicacion');
+  expect(cercaDeLaUdd(mapa.camera.center), isFalse);
+  expect(marcadorUdd, findsOneWidget);
+  await _tocar(tester, find.byTooltip('Centrar en la UDD'));
+  expect(cercaDeLaUdd(mapa.camera.center), isTrue);
 }
 
 Future<void> _probarDirecciones(

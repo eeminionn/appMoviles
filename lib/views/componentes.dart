@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -7,7 +5,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../mapa.dart';
 import '../theme/theme.dart';
-import '../ubicacion.dart';
 
 class MapaViaje extends StatefulWidget {
   const MapaViaje({
@@ -36,39 +33,11 @@ class _MapaViajeState extends State<MapaViaje> {
   int consulta = 0;
   bool mapaListo = false;
   String? estado;
-  late final AppLifecycleListener ciclo;
-  StreamSubscription<LatLng>? cambiosUbicacion;
-  LatLng? miUbicacion;
-  int consultaUbicacion = 0;
-  bool mapaVisible = false;
-  bool iniciandoUbicacion = false;
-  bool enfocarMiUbicacion = false;
 
   @override
   void initState() {
     super.initState();
-    ciclo = AppLifecycleListener(
-      onResume: iniciarUbicacion,
-      onPause: () => setState(() {
-        if (miUbicacion != null) enfocarMiUbicacion = false;
-        detenerUbicacion();
-      }),
-    );
     cargarLugares();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final visible = ModalRoute.isCurrentOf(context) ?? true;
-    if (visible == mapaVisible) return;
-    mapaVisible = visible;
-    if (visible) {
-      iniciarUbicacion();
-    } else {
-      enfocarMiUbicacion = false;
-      detenerUbicacion();
-    }
   }
 
   @override
@@ -76,7 +45,6 @@ class _MapaViajeState extends State<MapaViaje> {
     super.didUpdateWidget(anterior);
     if (anterior.origen != widget.origen ||
         anterior.destino != widget.destino) {
-      enfocarMiUbicacion = false;
       cargarLugares();
     } else if (anterior.altura != widget.altura) {
       ajustarVista();
@@ -85,109 +53,12 @@ class _MapaViajeState extends State<MapaViaje> {
 
   @override
   void dispose() {
-    ciclo.dispose();
-    detenerUbicacion();
     controlador.dispose();
     super.dispose();
   }
 
-  Future<void> iniciarUbicacion({bool pedirPermiso = false}) async {
-    if (!mapaVisible || iniciandoUbicacion || cambiosUbicacion != null) return;
-    final cicloActual = WidgetsBinding.instance.lifecycleState;
-    if (cicloActual == AppLifecycleState.paused ||
-        cicloActual == AppLifecycleState.hidden ||
-        cicloActual == AppLifecycleState.detached) {
-      return;
-    }
-
-    final solicitud = ++consultaUbicacion;
-    iniciandoUbicacion = true;
-    try {
-      final cambios = await seguirUbicacion(pedirPermiso: pedirPermiso);
-      if (!mounted || solicitud != consultaUbicacion) return;
-      iniciandoUbicacion = false;
-      cambiosUbicacion = cambios.listen(
-        (punto) {
-          if (!mounted || solicitud != consultaUbicacion) return;
-          final centrar =
-              miUbicacion == null &&
-              (enfocarMiUbicacion || widget.abrirMenu != null);
-          setState(() => miUbicacion = punto);
-          if (centrar) {
-            enfocarMiUbicacion = true;
-            if (mapaListo) centrarEnMiUbicacion();
-          }
-        },
-        onError: (Object error) {
-          if (!mounted || solicitud != consultaUbicacion) return;
-          final avisar = enfocarMiUbicacion;
-          setState(detenerUbicacion);
-          enfocarMiUbicacion = false;
-          if (avisar) {
-            avisarUbicacion(
-              error is ProblemaUbicacion
-                  ? error
-                  : const ProblemaUbicacion('No pudimos obtener tu ubicación.'),
-            );
-          }
-        },
-      );
-      if (enfocarMiUbicacion) {
-        avisarUbicacion(const ProblemaUbicacion('Buscando tu ubicación…'));
-      }
-    } on ProblemaUbicacion catch (problema) {
-      if (!mounted || solicitud != consultaUbicacion) return;
-      iniciandoUbicacion = false;
-      // Si se pulsó el botón durante la comprobación automática, pedir permiso.
-      if (!pedirPermiso && enfocarMiUbicacion) {
-        iniciarUbicacion(pedirPermiso: true);
-        return;
-      }
-      if (pedirPermiso) avisarUbicacion(problema);
-      enfocarMiUbicacion = false;
-    }
-  }
-
-  void detenerUbicacion() {
-    consultaUbicacion++;
-    iniciandoUbicacion = false;
-    unawaited(cambiosUbicacion?.cancel());
-    cambiosUbicacion = null;
-    miUbicacion = null;
-  }
-
-  void ubicarme() {
-    enfocarMiUbicacion = true;
-    if (miUbicacion != null) {
-      centrarEnMiUbicacion();
-    } else if (cambiosUbicacion != null) {
-      avisarUbicacion(const ProblemaUbicacion('Buscando tu ubicación…'));
-    } else {
-      iniciarUbicacion(pedirPermiso: true);
-    }
-  }
-
-  void centrarEnMiUbicacion() {
-    final punto = miUbicacion;
-    if (mapaListo && punto != null) controlador.move(punto, 17);
-  }
-
-  void avisarUbicacion(ProblemaUbicacion problema) {
-    final accion = problema.accion;
-    final etiqueta = problema.etiquetaAccion;
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(problema.mensaje),
-          action: accion == null || etiqueta == null
-              ? null
-              : SnackBarAction(
-                  label: etiqueta,
-                  onPressed: () async => accion(),
-                ),
-        ),
-      );
+  void centrarEnLaUdd() {
+    if (mapaListo) controlador.move(centroMapa, 15.5);
   }
 
   Future<void> cargarLugares() async {
@@ -242,13 +113,13 @@ class _MapaViajeState extends State<MapaViaje> {
   }
 
   void ajustarVista() {
+    if (!mapaListo) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && mapaListo && !enfocarMiUbicacion) centrarMapa();
+      if (mounted) centrarMapa();
     });
   }
 
   void centrarMapa() {
-    enfocarMiUbicacion = false;
     final inicio = origen;
     final fin = destino;
     if (inicio != null && fin != null && inicio != fin) {
@@ -267,6 +138,7 @@ class _MapaViajeState extends State<MapaViaje> {
   Marker pin(LatLng punto, IconData icono, Color color, String etiqueta) {
     return Marker(
       point: punto,
+      alignment: punto == centroMapa ? Alignment.topCenter : null,
       width: 42,
       height: 42,
       child: Tooltip(
@@ -308,7 +180,6 @@ class _MapaViajeState extends State<MapaViaje> {
   Widget build(BuildContext context) {
     final inicio = origen;
     final fin = destino;
-    final ubicacion = miUbicacion;
     final aviso = estado;
     return SizedBox(
       height: widget.altura,
@@ -328,13 +199,7 @@ class _MapaViajeState extends State<MapaViaje> {
               ),
               onMapReady: () {
                 mapaListo = true;
-                if (enfocarMiUbicacion && miUbicacion != null) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (mounted && enfocarMiUbicacion) centrarEnMiUbicacion();
-                  });
-                } else {
-                  ajustarVista();
-                }
+                if (origen != null || destino != null) ajustarVista();
               },
             ),
             children: [
@@ -377,28 +242,24 @@ class _MapaViajeState extends State<MapaViaje> {
                       AppColors.texto,
                       widget.origen == null ? 'Dirección' : 'Destino',
                     ),
-                  if (ubicacion != null)
-                    Marker(
-                      point: ubicacion,
-                      width: 24,
-                      height: 24,
-                      child: Tooltip(
-                        message: 'Tu ubicación',
-                        child: DecoratedBox(
-                          decoration: BoxDecoration(
-                            color: AppColors.azul,
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color: AppColors.blanco,
-                              width: 3,
-                            ),
-                            boxShadow: const [
-                              BoxShadow(color: Colors.black26, blurRadius: 4),
-                            ],
-                          ),
+                  Marker(
+                    point: centroMapa,
+                    width: 24,
+                    height: 24,
+                    child: Tooltip(
+                      message: 'Universidad del Desarrollo',
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppColors.azul,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.blanco, width: 3),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black26, blurRadius: 4),
+                          ],
                         ),
                       ),
                     ),
+                  ),
                 ],
               ),
             ],
@@ -412,7 +273,11 @@ class _MapaViajeState extends State<MapaViaje> {
           Positioned(
             bottom: AppSpacing.spacing20,
             right: AppSpacing.spacing12,
-            child: botonMapa('Mi ubicación', Icons.my_location, ubicarme),
+            child: botonMapa(
+              'Centrar en la UDD',
+              Icons.school_outlined,
+              centrarEnLaUdd,
+            ),
           ),
           if (widget.origen != null || widget.destino != null)
             Positioned(

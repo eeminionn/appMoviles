@@ -19,7 +19,7 @@ Abre el [sistema de diseño original](https://www.figma.com/design/NYWjQGbz2z6YS
 
 1. **0:00–0:30.** Presenta InDrive como una aplicación para organizar viajes y guardar direcciones.
 2. **0:30–2:10.** Muestra en Figma Inter, la paleta y los componentes. Abre los tres puntos de inicio.
-3. **2:10–3:00.** En Android, abre InDrive e inicia sesión. Pulsa **Mi ubicación** y permite el acceso mientras usas la app para ver el punto azul. Mueve y acerca el mapa, y muestra el menú y las pestañas.
+3. **2:10–3:00.** En Android, abre InDrive e inicia sesión. Muestra el punto azul fijo de la Universidad del Desarrollo. Mueve el mapa y pulsa **Centrar en la UDD** para volver al campus. Muestra el menú y las pestañas.
 4. **3:00–5:30.** Elige la Universidad del Desarrollo como origen y Mallplaza Los Dominicos como destino. Muestra los marcadores y la ruta por calles. Cambia la tarifa, guarda una preferencia de pago, elige una oferta y actualiza el estado del viaje. Filtra en Actividad y califícalo.
 5. **5:30–6:55.** Guarda una dirección, edítala, vuelve a verla y úsala al buscar destino. Muestra el borrado con confirmación.
 6. **6:55–8:00.** Abre Comunicación desde Soporte y registra una consulta. Señala Mensajes y Seguridad.
