@@ -8,11 +8,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:latlong2/latlong.dart';
 
 const _hostLocal = '10.0.2.2';
 const _plazo = Duration(seconds: 20);
 const _servidor = GetOptions(source: Source.server);
 const _capturas = bool.fromEnvironment('CAPTURAS');
+const _verificarUbicacion = bool.fromEnvironment('VERIFICAR_UBICACION');
 
 void main() {
   // Nunca ejecutar esta prueba contra el proyecto remoto.
@@ -74,6 +76,8 @@ void main() {
     );
     await _tocar(tester, _boton('Crear cuenta'));
     await _esperar(tester, find.byTooltip('Abrir menú'));
+    expect(find.text('Corregir mapa'), findsNothing);
+    if (_verificarUbicacion) await _probarUbicacion(tester);
     await _capturar(tester, 'inicio');
     final usuario = authLocal!.currentUser!;
     expect(usuario.email, correo);
@@ -88,6 +92,38 @@ void main() {
     await _esperar(tester, _boton('Iniciar sesión'));
     expect(authLocal!.currentUser, isNull);
   });
+}
+
+Future<void> _probarUbicacion(WidgetTester tester) async {
+  // Emulador con permiso de ubicación precisa y este punto enviado por ADB:
+  // adb emu geo fix -70.5740 -33.4110
+  const posicion = LatLng(-33.4110, -70.5740);
+  const margen = 0.001;
+  bool cerca(LatLng punto) =>
+      (punto.latitude - posicion.latitude).abs() < margen &&
+      (punto.longitude - posicion.longitude).abs() < margen;
+
+  await _tocar(tester, find.byTooltip('Mi ubicación'));
+  await _esperar(tester, find.byTooltip('Tu ubicación'));
+  await _esperar(
+    tester,
+    find.byWidgetPredicate(
+      (widget) =>
+          widget is MarkerLayer &&
+          widget.markers.any((marcador) => cerca(marcador.point)),
+      description: 'marcador en la coordenada GPS enviada al emulador',
+    ),
+  );
+
+  final mapa = tester
+      .widget<FlutterMap>(find.byType(FlutterMap))
+      .mapController!;
+  mapa.move(const LatLng(-33.42, -70.5740), mapa.camera.zoom);
+  await tester.pump();
+  expect(cerca(mapa.camera.center), isFalse);
+  await _tocar(tester, find.byTooltip('Mi ubicación'));
+  expect(cerca(mapa.camera.center), isTrue);
+  await _capturar(tester, 'ubicacion');
 }
 
 Future<void> _probarDirecciones(

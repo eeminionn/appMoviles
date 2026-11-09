@@ -26,6 +26,9 @@ comando="flutter test integration_test/entrega_test.dart -d $dispositivo --dart-
 if [[ -n "${INDRIVE_CAPTURAS_DIR:-}" ]]; then
   comando="flutter drive --driver=test_driver/capturas.dart --target=integration_test/entrega_test.dart -d $dispositivo --dart-define=PRUEBA_LOCAL=true --dart-define=CAPTURAS=true"
 fi
+if [[ "${INDRIVE_VERIFICAR_UBICACION:-0}" == 1 ]]; then
+  comando="$comando --dart-define=VERIFICAR_UBICACION=true"
+fi
 
 # El mismo ID hace que Auth y Firestore coincidan; todo el tráfico de la prueba va a localhost.
 npx -y firebase-tools@15.35.0 emulators:exec --only auth,firestore \

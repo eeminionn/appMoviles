@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -5,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../mapa.dart';
 import '../theme/theme.dart';
+import '../ubicacion.dart';
 
 class MapaViaje extends StatefulWidget {
   const MapaViaje({
@@ -33,11 +36,39 @@ class _MapaViajeState extends State<MapaViaje> {
   int consulta = 0;
   bool mapaListo = false;
   String? estado;
+  late final AppLifecycleListener ciclo;
+  StreamSubscription<LatLng>? cambiosUbicacion;
+  LatLng? miUbicacion;
+  int consultaUbicacion = 0;
+  bool mapaVisible = false;
+  bool iniciandoUbicacion = false;
+  bool enfocarMiUbicacion = false;
 
   @override
   void initState() {
     super.initState();
+    ciclo = AppLifecycleListener(
+      onResume: iniciarUbicacion,
+      onPause: () => setState(() {
+        if (miUbicacion != null) enfocarMiUbicacion = false;
+        detenerUbicacion();
+      }),
+    );
     cargarLugares();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final visible = ModalRoute.isCurrentOf(context) ?? true;
+    if (visible == mapaVisible) return;
+    mapaVisible = visible;
+    if (visible) {
+      iniciarUbicacion();
+    } else {
+      enfocarMiUbicacion = false;
+      detenerUbicacion();
+    }
   }
 
   @override
@@ -45,6 +76,7 @@ class _MapaViajeState extends State<MapaViaje> {
     super.didUpdateWidget(anterior);
     if (anterior.origen != widget.origen ||
         anterior.destino != widget.destino) {
+      enfocarMiUbicacion = false;
       cargarLugares();
     } else if (anterior.altura != widget.altura) {
       ajustarVista();
@@ -53,8 +85,109 @@ class _MapaViajeState extends State<MapaViaje> {
 
   @override
   void dispose() {
+    ciclo.dispose();
+    detenerUbicacion();
     controlador.dispose();
     super.dispose();
+  }
+
+  Future<void> iniciarUbicacion({bool pedirPermiso = false}) async {
+    if (!mapaVisible || iniciandoUbicacion || cambiosUbicacion != null) return;
+    final cicloActual = WidgetsBinding.instance.lifecycleState;
+    if (cicloActual == AppLifecycleState.paused ||
+        cicloActual == AppLifecycleState.hidden ||
+        cicloActual == AppLifecycleState.detached) {
+      return;
+    }
+
+    final solicitud = ++consultaUbicacion;
+    iniciandoUbicacion = true;
+    try {
+      final cambios = await seguirUbicacion(pedirPermiso: pedirPermiso);
+      if (!mounted || solicitud != consultaUbicacion) return;
+      iniciandoUbicacion = false;
+      cambiosUbicacion = cambios.listen(
+        (punto) {
+          if (!mounted || solicitud != consultaUbicacion) return;
+          final centrar =
+              miUbicacion == null &&
+              (enfocarMiUbicacion || widget.abrirMenu != null);
+          setState(() => miUbicacion = punto);
+          if (centrar) {
+            enfocarMiUbicacion = true;
+            if (mapaListo) centrarEnMiUbicacion();
+          }
+        },
+        onError: (Object error) {
+          if (!mounted || solicitud != consultaUbicacion) return;
+          final avisar = enfocarMiUbicacion;
+          setState(detenerUbicacion);
+          enfocarMiUbicacion = false;
+          if (avisar) {
+            avisarUbicacion(
+              error is ProblemaUbicacion
+                  ? error
+                  : const ProblemaUbicacion('No pudimos obtener tu ubicación.'),
+            );
+          }
+        },
+      );
+      if (enfocarMiUbicacion) {
+        avisarUbicacion(const ProblemaUbicacion('Buscando tu ubicación…'));
+      }
+    } on ProblemaUbicacion catch (problema) {
+      if (!mounted || solicitud != consultaUbicacion) return;
+      iniciandoUbicacion = false;
+      // Si se pulsó el botón durante la comprobación automática, pedir permiso.
+      if (!pedirPermiso && enfocarMiUbicacion) {
+        iniciarUbicacion(pedirPermiso: true);
+        return;
+      }
+      if (pedirPermiso) avisarUbicacion(problema);
+      enfocarMiUbicacion = false;
+    }
+  }
+
+  void detenerUbicacion() {
+    consultaUbicacion++;
+    iniciandoUbicacion = false;
+    unawaited(cambiosUbicacion?.cancel());
+    cambiosUbicacion = null;
+    miUbicacion = null;
+  }
+
+  void ubicarme() {
+    enfocarMiUbicacion = true;
+    if (miUbicacion != null) {
+      centrarEnMiUbicacion();
+    } else if (cambiosUbicacion != null) {
+      avisarUbicacion(const ProblemaUbicacion('Buscando tu ubicación…'));
+    } else {
+      iniciarUbicacion(pedirPermiso: true);
+    }
+  }
+
+  void centrarEnMiUbicacion() {
+    final punto = miUbicacion;
+    if (mapaListo && punto != null) controlador.move(punto, 17);
+  }
+
+  void avisarUbicacion(ProblemaUbicacion problema) {
+    final accion = problema.accion;
+    final etiqueta = problema.etiquetaAccion;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(problema.mensaje),
+          action: accion == null || etiqueta == null
+              ? null
+              : SnackBarAction(
+                  label: etiqueta,
+                  onPressed: () async => accion(),
+                ),
+        ),
+      );
   }
 
   Future<void> cargarLugares() async {
@@ -110,11 +243,12 @@ class _MapaViajeState extends State<MapaViaje> {
 
   void ajustarVista() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && mapaListo) centrarMapa();
+      if (mounted && mapaListo && !enfocarMiUbicacion) centrarMapa();
     });
   }
 
   void centrarMapa() {
+    enfocarMiUbicacion = false;
     final inicio = origen;
     final fin = destino;
     if (inicio != null && fin != null && inicio != fin) {
@@ -145,7 +279,7 @@ class _MapaViajeState extends State<MapaViaje> {
     );
   }
 
-  Widget enlaceMapa(String titulo, String enlace) {
+  Widget enlaceMapa(String titulo, String enlace, {IconData? icono}) {
     return TextButton(
       style: TextButton.styleFrom(
         minimumSize: Size.zero,
@@ -164,7 +298,9 @@ class _MapaViajeState extends State<MapaViaje> {
           );
         }
       },
-      child: Text(titulo),
+      child: icono == null
+          ? Text(titulo)
+          : Tooltip(message: titulo, child: Icon(icono, size: 16)),
     );
   }
 
@@ -172,6 +308,7 @@ class _MapaViajeState extends State<MapaViaje> {
   Widget build(BuildContext context) {
     final inicio = origen;
     final fin = destino;
+    final ubicacion = miUbicacion;
     final aviso = estado;
     return SizedBox(
       height: widget.altura,
@@ -191,7 +328,13 @@ class _MapaViajeState extends State<MapaViaje> {
               ),
               onMapReady: () {
                 mapaListo = true;
-                ajustarVista();
+                if (enfocarMiUbicacion && miUbicacion != null) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && enfocarMiUbicacion) centrarEnMiUbicacion();
+                  });
+                } else {
+                  ajustarVista();
+                }
               },
             ),
             children: [
@@ -234,6 +377,28 @@ class _MapaViajeState extends State<MapaViaje> {
                       AppColors.texto,
                       widget.origen == null ? 'Dirección' : 'Destino',
                     ),
+                  if (ubicacion != null)
+                    Marker(
+                      point: ubicacion,
+                      width: 24,
+                      height: 24,
+                      child: Tooltip(
+                        message: 'Tu ubicación',
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: AppColors.azul,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: AppColors.blanco,
+                              width: 3,
+                            ),
+                            boxShadow: const [
+                              BoxShadow(color: Colors.black26, blurRadius: 4),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ],
@@ -247,12 +412,18 @@ class _MapaViajeState extends State<MapaViaje> {
           Positioned(
             bottom: AppSpacing.spacing20,
             right: AppSpacing.spacing12,
-            child: botonMapa(
-              'Centrar mapa',
-              Icons.near_me_outlined,
-              centrarMapa,
-            ),
+            child: botonMapa('Mi ubicación', Icons.my_location, ubicarme),
           ),
+          if (widget.origen != null || widget.destino != null)
+            Positioned(
+              bottom: AppSpacing.spacing72,
+              right: AppSpacing.spacing12,
+              child: botonMapa(
+                'Centrar mapa',
+                Icons.center_focus_strong_outlined,
+                centrarMapa,
+              ),
+            ),
           Positioned(
             bottom: AppSpacing.spacing20,
             left: AppSpacing.spacing8,
@@ -273,10 +444,12 @@ class _MapaViajeState extends State<MapaViaje> {
                         'OSRM · FOSSGIS',
                         'https://routing.openstreetmap.de/about.html',
                       ),
-                    enlaceMapa(
-                      'Corregir mapa',
-                      'https://www.openstreetmap.org/fixthemap',
-                    ),
+                    if (ruta.isNotEmpty)
+                      enlaceMapa(
+                        'Informar un problema del mapa',
+                        'https://www.openstreetmap.org/fixthemap',
+                        icono: Icons.outlined_flag,
+                      ),
                   ],
                 ),
               ),
