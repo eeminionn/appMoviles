@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../busquedas_recientes.dart';
 import '../datos.dart';
 import '../theme/theme.dart';
+import 'buscador_direcciones.dart';
 import 'componentes.dart';
 
 class DireccionesScreen extends StatefulWidget {
@@ -28,6 +31,7 @@ class _DireccionesScreenState extends State<DireccionesScreen> {
     final resultado = await Navigator.of(context).push<String>(
       MaterialPageRoute(
         builder: (context) => _FormularioDireccion(
+          uid: widget.uid,
           tipo: tipo,
           direcciones: direcciones,
           documento: documento,
@@ -118,11 +122,13 @@ class _DireccionesScreenState extends State<DireccionesScreen> {
 
 class _FormularioDireccion extends StatefulWidget {
   const _FormularioDireccion({
+    required this.uid,
     required this.tipo,
     required this.direcciones,
     this.documento,
   });
 
+  final String uid;
   final String tipo;
   final CollectionReference<Map<String, dynamic>> direcciones;
   final QueryDocumentSnapshot<Map<String, dynamic>>? documento;
@@ -139,6 +145,7 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
   late final direccionController = TextEditingController(
     text: widget.documento?.data()['direccion'] as String? ?? '',
   );
+  late LatLng? punto = leerPunto(widget.documento?.data()['punto']);
   bool confirmando = false;
   bool guardando = false;
 
@@ -155,6 +162,19 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
     setState(() => confirmando = true);
   }
 
+  Future<void> buscarDireccion() async {
+    final resultado = await mostrarResultadosDireccion(
+      context,
+      widget.uid,
+      direccionController.text,
+    );
+    if (!mounted || resultado == null) return;
+    setState(() {
+      direccionController.text = resultado.direccion;
+      punto = resultado.punto;
+    });
+  }
+
   Future<void> guardarDireccion() async {
     setState(() => guardando = true);
     final datos = <String, dynamic>{
@@ -163,6 +183,10 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
           : widget.tipo,
       'direccion': direccionController.text.trim(),
       'tipo': widget.tipo,
+      if (punto != null)
+        'punto': guardarPunto(punto!)
+      else if (widget.documento != null)
+        'punto': FieldValue.delete(),
     };
 
     try {
@@ -251,6 +275,7 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
                       MapaViaje(
                         altura: AppSize.mapaTarifa + AppSpacing.spacing12,
                         destino: direccionController.text.trim(),
+                        puntoDestino: punto,
                       ),
                       SafeArea(
                         child: Padding(
@@ -340,11 +365,17 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
                         labelText: 'Buscar dirección',
                         prefixIcon: Icon(Icons.search),
                       ),
-                      onChanged: (_) => setState(() {}),
+                      onChanged: (_) => setState(() => punto = null),
                       validator: (valor) => (valor ?? '').trim().length < 2
                           ? 'Ingresa una dirección'
                           : null,
                       textInputAction: TextInputAction.search,
+                      onFieldSubmitted: (_) => buscarDireccion(),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: guardando ? null : buscarDireccion,
+                      icon: const Icon(Icons.search),
+                      label: const Text('Buscar dirección'),
                     ),
                     for (final lugar in coincidencias)
                       ListTile(
@@ -356,6 +387,7 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
                             : () {
                                 direccionController.text =
                                     '${lugar.key}, ${lugar.value}';
+                                punto = null;
                                 if (nombreController.text.trim().isEmpty) {
                                   nombreController.text = lugar.key;
                                 }

@@ -84,6 +84,7 @@ const viaje = {
 const direccion = { nombre: 'Mi casa', direccion: 'Calle de ejemplo 123', tipo: 'Domicilio' };
 const consulta = { tema: 'Comunicación', mensaje: 'Es una consulta local de prueba.' };
 const mensaje = { viajeId: 'principal', texto: 'Hola, estoy en la entrada.' };
+const punto = { geoPointValue: { latitude: -33.3916042, longitude: -70.5005107 } };
 
 await listo('Ana crea un viaje', escribir(ana, alta(rutaViaje, viaje)));
 await listo('Bea crea su propio viaje', escribir(bea, alta(rutaViajeBea, viaje)));
@@ -143,6 +144,9 @@ await listo('Crea domicilio en ID fijo', escribir(ana, alta(rutaDireccion, direc
 await denegado('Crea otro domicilio con ID distinto', escribir(ana, alta(`${ana.ruta}/direcciones/duplicado`, direccion)));
 await listo('Crea otra dirección con ID automático', escribir(ana, alta(`${ana.ruta}/direcciones/a1b2c3d4e5f6g7h8i9j0`, { ...direccion, tipo: 'Otro' })));
 await listo('Edita su dirección', escribir(ana, cambio(rutaDireccion, { nombre: 'Casa nueva' })));
+await listo('Agrega coordenada a una dirección guardada', escribir(ana, cambio(rutaDireccion, { punto })));
+await denegado('Rechaza coordenada guardada de tipo incorrecto', escribir(ana, cambio(rutaDireccion, { punto: 'UDD' })));
+await listo('Quita coordenada al editar dirección', escribir(ana, cambio(rutaDireccion, {}, ['punto'])));
 await denegado('Nombre de dirección excesivo', escribir(ana, cambio(rutaDireccion, { nombre: 'a'.repeat(41) })));
 await denegado('Otra cuenta no lee el domicilio', leer(bea, rutaDireccion));
 await listo('Borra su domicilio', escribir(ana, baja(rutaDireccion)));
@@ -169,5 +173,73 @@ await denegado('No crea un mensaje si borra el viaje en la misma operación', es
 await listo('Borra su viaje cerrado', escribir(ana, baja(rutaViaje)));
 await denegado('No crea mensajes de un viaje borrado', escribir(ana, alta(`${ana.ruta}/mensajes/posterior`, mensaje)));
 await listo('Limpia un mensaje existente de un viaje borrado', escribir(ana, baja(rutaMensaje)));
+
+const rutaBusqueda = `${ana.ruta}/busquedasRecientes/avenida-ejemplo`;
+const busqueda = (datos, ruta = rutaBusqueda) => ({
+  ...guardar(ruta, datos),
+  updateTransforms: [{ fieldPath: 'buscadoEn', setToServerValue: 'REQUEST_TIME' }],
+});
+const consultaDireccion = { consulta: 'Avenida Ejemplo' };
+await listo('Guarda una búsqueda reciente', escribir(ana, busqueda(consultaDireccion)));
+await listo('Asocia una dirección encontrada a la búsqueda', escribir(ana, busqueda({
+  ...consultaDireccion, direccion: 'Avenida Ejemplo 20', punto,
+})));
+await listo('Lista búsquedas por fecha', leer(ana, `${ana.ruta}/busquedasRecientes?orderBy=buscadoEn%20desc`));
+await denegado('No lista búsquedas sin sesión', leer(null, `${ana.ruta}/busquedasRecientes`));
+await denegado('No lee una búsqueda de otra cuenta', leer(bea, rutaBusqueda));
+await denegado('No cambia una búsqueda de otra cuenta', escribir(bea, busqueda(consultaDireccion)));
+await denegado('Rechaza IDs de búsqueda inválidos', escribir(ana, busqueda(consultaDireccion, `${ana.ruta}/busquedasRecientes/INVALIDO`)));
+await denegado('Rechaza fecha de búsqueda elegida por cliente', escribir(ana, guardar(rutaBusqueda, {
+  ...consultaDireccion, buscadoEn: { timestampValue: '2000-01-01T00:00:00Z' },
+})));
+for (const [caso, datos] of [
+  ['Falta consulta', { direccion: 'Avenida Ejemplo 20', punto }],
+  ['Rechaza consulta excesiva', { consulta: 'a'.repeat(121) }],
+  ['Rechaza campos de búsqueda ajenos al esquema', { ...consultaDireccion, uid: bea.ruta }],
+  ['Rechaza dirección sin coordenada', { ...consultaDireccion, direccion: 'Avenida Ejemplo 20' }],
+  ['Rechaza coordenada sin dirección', { ...consultaDireccion, punto }],
+  ['Rechaza coordenada mal tipada', { ...consultaDireccion, direccion: 'Avenida Ejemplo 20', punto: 10 }],
+]) {
+  await denegado(caso, escribir(ana, busqueda(datos)));
+}
+
+const idPrimero = 'a'.repeat(20);
+const idSegundo = 'b'.repeat(20);
+const rutaPrimero = `${ana.ruta}/viajes/${idPrimero}`;
+const rutaSegundo = `${ana.ruta}/viajes/${idSegundo}`;
+const pagoFrecuente = (ultimoViajeId, incremento = 1, metodo = 'Efectivo') => ({
+  ...guardar(`${ana.ruta}/pagosFrecuentes/${metodo}`, { ultimoViajeId }),
+  updateMask: { fieldPaths: ['ultimoViajeId'] },
+  updateTransforms: [
+    { fieldPath: 'ultimoUso', setToServerValue: 'REQUEST_TIME' },
+    { fieldPath: 'usos', increment: { integerValue: String(incremento) } },
+  ],
+});
+const rutaPago = `${ana.ruta}/pagosFrecuentes/Efectivo`;
+const viajeConPuntos = { ...viaje, puntoOrigen: punto, puntoDestino: punto };
+await denegado('Rechaza coordenada de viaje mal tipada', escribir(ana, alta(rutaPrimero, {
+  ...viaje, puntoDestino: 'UDD',
+})));
+await denegado('No crea frecuencia sin viaje nuevo', escribir(ana, pagoFrecuente(idPrimero)));
+await denegado('Rechaza un medio distinto al elegido en el viaje', escribir(ana,
+  alta(rutaPrimero, viaje), pagoFrecuente(idPrimero, 1, 'MACH')));
+await denegado('Rechaza un ID de viaje con segmentos de ruta', escribir(ana, pagoFrecuente('viajes/principal')));
+await listo('Guarda viaje con coordenadas y registra su primer uso de pago', escribir(ana,
+  alta(rutaPrimero, viajeConPuntos), pagoFrecuente(idPrimero)));
+await denegado('No altera coordenadas de un viaje guardado', escribir(ana, cambio(rutaPrimero, {}, ['puntoOrigen'])));
+await denegado('No aumenta frecuencia con un viaje ya registrado', escribir(ana, pagoFrecuente(idPrimero)));
+await denegado('No aumenta frecuencia más de uno por viaje', escribir(ana,
+  alta(rutaSegundo, viaje), pagoFrecuente(idSegundo, 2)));
+await denegado('No cuenta el mismo viaje dos veces en el lote', escribir(ana,
+  alta(rutaSegundo, viaje), pagoFrecuente(idSegundo), pagoFrecuente(idSegundo)));
+await listo('Aumenta la frecuencia al guardar otro viaje', escribir(ana,
+  alta(rutaSegundo, viaje), pagoFrecuente(idSegundo)));
+const pagoGuardado = await listo('Lee su propia frecuencia', leer(ana, rutaPago));
+assert.equal((await pagoGuardado.json()).fields.usos.integerValue, '2');
+await listo('Lista sus pagos por frecuencia', leer(ana, `${ana.ruta}/pagosFrecuentes?orderBy=usos%20desc`));
+await denegado('No lista pagos sin sesión', leer(null, `${ana.ruta}/pagosFrecuentes`));
+await denegado('No lee frecuencias de otra cuenta', leer(bea, rutaPago));
+await denegado('No escribe frecuencias de otra cuenta', escribir(bea, pagoFrecuente(idSegundo)));
+await denegado('No borra una frecuencia', escribir(ana, baja(rutaPago)));
 
 console.log(`${pruebas} comprobaciones de reglas de Firestore pasaron.`);

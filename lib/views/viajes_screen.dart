@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:latlong2/latlong.dart';
 
+import '../busquedas_recientes.dart';
 import '../datos.dart';
 import '../theme/theme.dart';
+import 'buscador_direcciones.dart';
 import 'componentes.dart';
 import 'mensajes_screen.dart';
 import 'seguridad_screen.dart';
@@ -201,10 +204,21 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
   late final destino = TextEditingController(text: widget.destinoInicial);
   String? origenMapa = origenInicial;
   late String? destinoMapa = widget.destinoInicial.trim();
+  LatLng? puntoOrigen;
+  LatLng? puntoDestino;
+  late final recientes = escucharBusquedasRecientes(widget.uid);
   late final direcciones = FirebaseFirestore.instance
       .collection('usuarios')
       .doc(widget.uid)
       .collection('direcciones')
+      .snapshots();
+  late final pagosFrecuentes = FirebaseFirestore.instance
+      .collection('usuarios')
+      .doc(widget.uid)
+      .collection('pagosFrecuentes');
+  late final cambiosPagosFrecuentes = pagosFrecuentes
+      .orderBy('usos', descending: true)
+      .limit(3)
       .snapshots();
 
   late String servicio = servicios.contains(widget.servicioInicial)
@@ -242,14 +256,19 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
   }
 
   Future<void> solicitar() async {
-    if (pago == null || guardando) return;
+    final metodo = pago;
+    if (metodo == null || guardando) return;
     setState(() => guardando = true);
     try {
-      final doc = await _viajes(widget.uid).add({
+      final doc = _viajes(widget.uid).doc();
+      final lote = doc.firestore.batch();
+      lote.set(doc, {
         'origen': origen.text.trim(),
         'destino': destino.text.trim(),
+        if (puntoOrigen != null) 'puntoOrigen': guardarPunto(puntoOrigen!),
+        if (puntoDestino != null) 'puntoDestino': guardarPunto(puntoDestino!),
         'servicio': servicio,
-        'pago': pago!,
+        'pago': metodo,
         'tarifa': tarifa,
         'autoAceptar': false,
         'estado': 'buscando',
@@ -257,6 +276,12 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
         'calificacion': 0,
         'creadoEn': FieldValue.serverTimestamp(),
       });
+      lote.set(pagosFrecuentes.doc(metodo), {
+        'usos': FieldValue.increment(1),
+        'ultimoUso': FieldValue.serverTimestamp(),
+        'ultimoViajeId': doc.id,
+      }, SetOptions(merge: true));
+      await lote.commit();
       if (!mounted) return;
       Navigator.of(context).pushReplacement(
         MaterialPageRoute<void>(
@@ -280,7 +305,8 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
   String? validarDestino(String? valor) {
     final error = validarDireccion(valor);
     if (error != null) return error;
-    if (_claveLugar(origen.text) == _claveLugar(valor!)) {
+    if (_claveLugar(origen.text) == _claveLugar(valor!) ||
+        (puntoOrigen != null && puntoOrigen == puntoDestino)) {
       return 'El destino debe ser distinto del origen.';
     }
     return null;
@@ -302,6 +328,87 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
     );
   }
 
+  void elegirDireccion(
+    TextEditingController campo,
+    String direccion,
+    LatLng? punto,
+  ) {
+    setState(() {
+      campo.text = direccion;
+      if (campo == origen) {
+        origenMapa = direccion;
+        puntoOrigen = punto;
+      } else {
+        destinoMapa = direccion;
+        puntoDestino = punto;
+      }
+    });
+    FocusScope.of(context).unfocus();
+  }
+
+  Future<void> buscarDireccion(
+    TextEditingController campo, [
+    String? consulta,
+  ]) async {
+    final resultado = await mostrarResultadosDireccion(
+      context,
+      widget.uid,
+      consulta ?? campo.text,
+    );
+    if (!mounted || resultado == null) return;
+    elegirDireccion(campo, resultado.direccion, resultado.punto);
+  }
+
+  Widget busquedasRecientes() {
+    return StreamBuilder<List<BusquedaReciente>>(
+      stream: recientes,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('No pudimos cargar tus búsquedas recientes.');
+        }
+        final historial = snapshot.data ?? [];
+        if (historial.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Búsquedas recientes',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            for (final busqueda in historial)
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                dense: true,
+                leading: const Icon(Icons.history),
+                title: Text(busqueda.consulta),
+                subtitle: busqueda.resultado == null
+                    ? null
+                    : Text(busqueda.resultado!.direccion),
+                onTap: () {
+                  final campo = buscaOrigen ? origen : destino;
+                  final resultado = busqueda.resultado;
+                  if (resultado == null) {
+                    buscarDireccion(campo, busqueda.consulta);
+                    return;
+                  }
+                  elegirDireccion(campo, resultado.direccion, resultado.punto);
+                  unawaited(
+                    registrarBusqueda(
+                      context,
+                      widget.uid,
+                      busqueda.consulta,
+                      resultado,
+                    ),
+                  );
+                },
+              ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget sugerencias() {
     final campo = buscaOrigen ? origen : destino;
     final consulta = filtroSugerencias ? campo.text.trim() : '';
@@ -309,21 +416,22 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: direcciones,
       builder: (context, snapshot) {
-        final guardadas = <MapEntry<String, String>>[
+        final guardadas = <(String, String, LatLng?)>[
           for (final doc in snapshot.data?.docs ?? [])
-            MapEntry(
+            (
               doc.data()['nombre'] as String? ?? 'Dirección guardada',
               doc.data()['direccion'] as String? ?? '',
+              leerPunto(doc.data()['punto']),
             ),
         ];
-        final opciones = <(String, String, bool)>[
-          for (final item in guardadas)
-            if (item.value.isNotEmpty &&
-                coincide('${item.key} ${item.value}', consulta))
-              (item.key, item.value, true),
+        final opciones = <(String, String, bool, LatLng?)>[
+          for (final (nombre, direccion, punto) in guardadas)
+            if (direccion.isNotEmpty &&
+                coincide('$nombre $direccion', consulta))
+              (nombre, direccion, true, punto),
           for (final item in lugares.entries)
             if (coincide('${item.key} ${item.value}', consulta))
-              (item.key, item.value, false),
+              (item.key, item.value, false, null),
         ];
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -336,12 +444,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
               const Text('No se pudieron cargar tus direcciones guardadas.')
             else if (snapshot.connectionState == ConnectionState.waiting)
               const LinearProgressIndicator(),
-            if (opciones.isEmpty)
-              const Padding(
-                padding: EdgeInsets.symmetric(vertical: AppSpacing.spacing8),
-                child: Text('Puedes usar la dirección que escribiste.'),
-              ),
-            for (final (nombre, direccion, guardada) in opciones.take(4))
+            for (final (nombre, direccion, guardada, punto) in opciones.take(4))
               ListTile(
                 contentPadding: EdgeInsets.zero,
                 dense: true,
@@ -357,15 +460,11 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
                       : direccion.isEmpty || nombre == direccion
                       ? nombre
                       : '$nombre, $direccion';
-                  setState(() {
-                    campo.text = etiqueta.length <= 120 ? etiqueta : direccion;
-                    if (buscaOrigen) {
-                      origenMapa = campo.text;
-                    } else {
-                      destinoMapa = campo.text;
-                    }
-                  });
-                  FocusScope.of(context).unfocus();
+                  elegirDireccion(
+                    campo,
+                    etiqueta.length <= 120 ? etiqueta : direccion,
+                    punto,
+                  );
                 },
               ),
           ],
@@ -384,7 +483,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
           const SizedBox(height: AppSpacing.spacing16),
           TextFormField(
             controller: origen,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.search,
             maxLength: 120,
             validator: validarDireccion,
             onTap: () => setState(() {
@@ -395,7 +494,9 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
               buscaOrigen = true;
               filtroSugerencias = true;
               origenMapa = null;
+              puntoOrigen = null;
             }),
+            onFieldSubmitted: (_) => buscarDireccion(origen),
             decoration: const InputDecoration(
               labelText: 'Origen',
               prefixIcon: Icon(Icons.trip_origin),
@@ -405,6 +506,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
           const SizedBox(height: AppSpacing.spacing8),
           TextFormField(
             controller: destino,
+            textInputAction: TextInputAction.search,
             maxLength: 120,
             validator: validarDestino,
             onTap: () => setState(() {
@@ -415,13 +517,23 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
               buscaOrigen = false;
               filtroSugerencias = true;
               destinoMapa = null;
+              puntoDestino = null;
             }),
+            onFieldSubmitted: (_) => buscarDireccion(destino),
             decoration: const InputDecoration(
               labelText: 'Buscar destino',
               prefixIcon: Icon(Icons.search),
               counterText: '',
             ),
           ),
+          const SizedBox(height: AppSpacing.spacing8),
+          OutlinedButton.icon(
+            onPressed: () => buscarDireccion(buscaOrigen ? origen : destino),
+            icon: const Icon(Icons.search),
+            label: Text(buscaOrigen ? 'Buscar origen' : 'Buscar dirección'),
+          ),
+          const SizedBox(height: AppSpacing.spacing12),
+          busquedasRecientes(),
           const SizedBox(height: AppSpacing.spacing16),
           sugerencias(),
           const SizedBox(height: AppSpacing.spacing16),
@@ -471,27 +583,61 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
     );
   }
 
+  Widget opcionPago(String opcion, {int? usos}) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(
+        opcion == 'Efectivo'
+            ? Icons.payments_outlined
+            : Icons.account_balance_wallet_outlined,
+        color: AppColors.verdeOscuro,
+      ),
+      title: Text(opcion),
+      subtitle: usos == null
+          ? null
+          : Text(usos == 1 ? 'Usado 1 vez' : 'Usado $usos veces'),
+      trailing: Icon(
+        pago == opcion ? Icons.check_box : Icons.check_box_outline_blank,
+        color: AppColors.verdeOscuro,
+      ),
+      selected: pago == opcion,
+      onTap: guardando ? null : () => setState(() => pago = opcion),
+    );
+  }
+
   Widget formularioPago() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final opcion in pagos)
-          ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(
-              opcion == 'Efectivo'
-                  ? Icons.payments_outlined
-                  : Icons.account_balance_wallet_outlined,
-              color: AppColors.verdeOscuro,
-            ),
-            title: Text(opcion),
-            trailing: Icon(
-              pago == opcion ? Icons.check_box : Icons.check_box_outline_blank,
-              color: AppColors.verdeOscuro,
-            ),
-            selected: pago == opcion,
-            onTap: guardando ? null : () => setState(() => pago = opcion),
-          ),
+        StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: cambiosPagosFrecuentes,
+          builder: (context, snapshot) {
+            final frecuentes = <String, int>{};
+            for (final doc in snapshot.data?.docs ?? []) {
+              final usos = doc.data()['usos'];
+              if (pagos.contains(doc.id) && usos is int && usos > 0) {
+                frecuentes[doc.id] = usos;
+              }
+            }
+            final titulo = Theme.of(context).textTheme.titleSmall;
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (snapshot.hasError)
+                  const Text('No pudimos cargar tus pagos frecuentes.'),
+                if (frecuentes.isNotEmpty) ...[
+                  Text('Pagos frecuentes', style: titulo),
+                  for (final metodo in frecuentes.entries)
+                    opcionPago(metodo.key, usos: metodo.value),
+                  const Divider(),
+                  Text('Otros métodos de pago', style: titulo),
+                ],
+                for (final opcion in pagos)
+                  if (!frecuentes.containsKey(opcion)) opcionPago(opcion),
+              ],
+            );
+          },
+        ),
         const SizedBox(height: AppSpacing.spacing16),
         const Text('El medio de pago se guarda con tu solicitud.'),
         const SizedBox(height: AppSpacing.spacing8),
@@ -527,6 +673,8 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
                 altura: paso == 0 ? AppSize.mapaInicio : AppSize.mapaTarifa,
                 origen: origenMapa,
                 destino: destinoMapa,
+                puntoOrigen: puntoOrigen,
+                puntoDestino: puntoDestino,
               ),
             _panelViaje(mostrarGuia: paso < 2, switch (paso) {
               0 => formularioRuta(),
@@ -1019,6 +1167,8 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
               : AppSize.mapaConfirmacion,
           origen: datos['origen'] as String?,
           destino: datos['destino'] as String?,
+          puntoOrigen: leerPunto(datos['puntoOrigen']),
+          puntoDestino: leerPunto(datos['puntoDestino']),
         ),
         _panelViaje(
           Column(

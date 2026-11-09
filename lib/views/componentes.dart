@@ -13,12 +13,16 @@ class MapaViaje extends StatefulWidget {
     this.abrirMenu,
     this.origen,
     this.destino,
+    this.puntoOrigen,
+    this.puntoDestino,
   });
 
   final double altura;
   final VoidCallback? abrirMenu;
   final String? origen;
   final String? destino;
+  final LatLng? puntoOrigen;
+  final LatLng? puntoDestino;
 
   @override
   State<MapaViaje> createState() => _MapaViajeState();
@@ -44,7 +48,9 @@ class _MapaViajeState extends State<MapaViaje> {
   void didUpdateWidget(MapaViaje anterior) {
     super.didUpdateWidget(anterior);
     if (anterior.origen != widget.origen ||
-        anterior.destino != widget.destino) {
+        anterior.destino != widget.destino ||
+        anterior.puntoOrigen != widget.puntoOrigen ||
+        anterior.puntoDestino != widget.puntoDestino) {
       cargarLugares();
     } else if (anterior.altura != widget.altura) {
       ajustarVista();
@@ -76,8 +82,12 @@ class _MapaViajeState extends State<MapaViaje> {
     estado = 'Ubicando direcciones…';
 
     final puntos = await Future.wait([
-      buscarPunto(textoOrigen),
-      buscarPunto(textoDestino),
+      widget.puntoOrigen == null
+          ? buscarPunto(textoOrigen)
+          : Future.value(widget.puntoOrigen),
+      widget.puntoDestino == null
+          ? buscarPunto(textoDestino)
+          : Future.value(widget.puntoDestino),
     ]);
     if (!mounted || consulta != solicitud) return;
     final inicio = puntos[0];

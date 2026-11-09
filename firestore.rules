@@ -5,11 +5,16 @@ rules_version = '2';
 // viajes: origen/destino (2–120), servicio y pago de catálogo, tarifa entera
 // (1000–200000 CLP), autoAceptar (bool), estado de catálogo, conductor de demo
 // (o vacío), calificacion entera (0–5) y creadoEn (timestamp inmutable).
+// puntoOrigen y puntoDestino: coordenadas opcionales e inmutables.
 // direcciones: nombre (2–40), direccion (2–120), tipo de catálogo y creadoEn
 // (timestamp inmutable). IDs fijos para domicilio/trabajo; ID automático en Otro.
+// punto: coordenada opcional y editable para la dirección guardada.
 // consultas: tema (2–60), mensaje (4–400), creadoEn (timestamp), sin cambios.
 // mensajes: viajeId propio (1–128), texto (1–280), creadoEn (timestamp).
-// Todos los campos son obligatorios y las creaciones usan la hora del servidor.
+// busquedasRecientes: consulta (2–120), buscadoEn (hora del servidor).
+// direccion (2–120) y punto son opcionales y se guardan juntos.
+// pagosFrecuentes: ID del medio de pago, usos (entero positivo), ultimoUso
+// (hora del servidor) y ultimoViajeId propio. Solo aumenta al crear un viaje.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -25,6 +30,11 @@ service cloud.firestore {
       return datos.keys().hasAll(campos) && datos.keys().hasOnly(campos);
     }
 
+    function camposValidos(datos, obligatorios, opcionales) {
+      return datos.keys().hasAll(obligatorios)
+        && datos.keys().hasOnly(obligatorios.concat(opcionales));
+    }
+
     function textoValido(valor, minimo, maximo) {
       return valor is string && valor.size() >= minimo && valor.size() <= maximo;
     }
@@ -33,19 +43,29 @@ service cloud.firestore {
       return valor is int && valor >= minimo && valor <= maximo;
     }
 
+    function horaDelServidor(valor) {
+      return valor is timestamp && valor == request.time;
+    }
+
     function creacionDelServidor(datos) {
-      return datos.creadoEn is timestamp && datos.creadoEn == request.time;
+      return horaDelServidor(datos.creadoEn);
+    }
+
+    function metodoDePagoValido(metodo) {
+      return metodo in ['Efectivo', 'Tenpo', 'MACH', 'Banco Santander', 'Mercado Pago', 'PagoRUT'];
     }
 
     function viajeValido(datos) {
-      return camposExactos(datos, [
+      return camposValidos(datos, [
           'origen', 'destino', 'servicio', 'pago', 'tarifa', 'autoAceptar',
           'estado', 'conductor', 'calificacion', 'creadoEn'
-        ])
+        ], ['puntoOrigen', 'puntoDestino'])
         && textoValido(datos.origen, 2, 120)
         && textoValido(datos.destino, 2, 120)
+        && (!('puntoOrigen' in datos) || datos.puntoOrigen is latlng)
+        && (!('puntoDestino' in datos) || datos.puntoDestino is latlng)
         && datos.servicio in ['Ciudad', 'Moto', 'Interurbano', 'Entregas', 'Fletes']
-        && datos.pago in ['Efectivo', 'Tenpo', 'MACH', 'Banco Santander', 'Mercado Pago', 'PagoRUT']
+        && metodoDePagoValido(datos.pago)
         && enteroValido(datos.tarifa, 1000, 200000)
         && datos.autoAceptar is bool
         && datos.estado in ['buscando', 'confirmado', 'en curso', 'completado', 'cancelado']
@@ -73,9 +93,10 @@ service cloud.firestore {
     }
 
     function direccionValida(datos, id) {
-      return camposExactos(datos, ['nombre', 'direccion', 'tipo', 'creadoEn'])
+      return camposValidos(datos, ['nombre', 'direccion', 'tipo', 'creadoEn'], ['punto'])
         && textoValido(datos.nombre, 2, 40)
         && textoValido(datos.direccion, 2, 120)
+        && (!('punto' in datos) || datos.punto is latlng)
         && ((datos.tipo == 'Domicilio' && id == 'domicilio')
           || (datos.tipo == 'Trabajo' && id == 'trabajo')
           || (datos.tipo == 'Otro' && id.matches('^[a-zA-Z0-9]{20}$')))
@@ -98,6 +119,31 @@ service cloud.firestore {
         && creacionDelServidor(datos);
     }
 
+    function busquedaRecienteValida(datos, id) {
+      return id.matches('^[a-z0-9-]{1,120}$')
+        && camposValidos(datos, ['consulta', 'buscadoEn'], ['direccion', 'punto'])
+        && textoValido(datos.consulta, 2, 120)
+        && horaDelServidor(datos.buscadoEn)
+        && ((!('direccion' in datos) && !('punto' in datos))
+          || (textoValido(datos.direccion, 2, 120) && datos.punto is latlng));
+    }
+
+    function pagoFrecuenteValido(datos, metodo) {
+      return metodoDePagoValido(metodo)
+        && camposExactos(datos, ['usos', 'ultimoUso', 'ultimoViajeId'])
+        && datos.usos is int && datos.usos >= 1
+        && horaDelServidor(datos.ultimoUso)
+        && datos.ultimoViajeId is string
+        && datos.ultimoViajeId.matches('^[a-zA-Z0-9]{20}$');
+    }
+
+    function viajeNuevoConPago(uid, viajeId, metodo) {
+      let rutaViaje = /databases/$(database)/documents/usuarios/$(uid)/viajes/$(viajeId);
+      return !exists(rutaViaje)
+        && existsAfter(rutaViaje)
+        && getAfter(rutaViaje).data.pago == metodo;
+    }
+
     match /usuarios/{uid}/viajes/{id} {
       allow read: if esDueno(uid);
       allow create: if esDueno(uid) && viajeValido(request.resource.data)
@@ -116,6 +162,25 @@ service cloud.firestore {
         && creacionDelServidor(request.resource.data);
       allow update: if esDueno(uid) && direccionValida(request.resource.data, id)
         && request.resource.data.creadoEn == resource.data.creadoEn;
+    }
+
+    match /usuarios/{uid}/busquedasRecientes/{id} {
+      allow read: if esDueno(uid);
+      allow create, update: if esDueno(uid)
+        && busquedaRecienteValida(request.resource.data, id);
+    }
+
+    match /usuarios/{uid}/pagosFrecuentes/{metodo} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid)
+        && pagoFrecuenteValido(request.resource.data, metodo)
+        && request.resource.data.usos == 1
+        && viajeNuevoConPago(uid, request.resource.data.ultimoViajeId, metodo);
+      allow update: if esDueno(uid)
+        && pagoFrecuenteValido(request.resource.data, metodo)
+        && request.resource.data.usos == resource.data.usos + 1
+        && request.resource.data.ultimoViajeId != resource.data.ultimoViajeId
+        && viajeNuevoConPago(uid, request.resource.data.ultimoViajeId, metodo);
     }
 
     match /usuarios/{uid}/consultas/{id} {

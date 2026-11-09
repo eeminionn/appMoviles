@@ -202,11 +202,31 @@ Future<void> _probarViaje(
   WidgetTester tester,
   DocumentReference<Map<String, dynamic>> usuario,
 ) async {
-  const destino = 'Metro Salvador';
+  const consulta = 'Palacio de La Moneda, Santiago';
+  const destino = 'Palacio de La Moneda, Moneda 1250, Santiago';
   const mensaje = 'Punto de encuentro junto a la entrada principal.';
+  final busqueda = usuario
+      .collection('busquedasRecientes')
+      .doc('palacio-de-la-moneda-santiago');
 
   await _tocar(tester, find.widgetWithText(InkWell, 'Buscar destino'));
-  await _escribir(tester, find.byType(TextFormField).at(1), destino);
+  await _escribir(tester, find.byType(TextFormField).at(1), consulta);
+  await _tocar(tester, find.widgetWithText(OutlinedButton, 'Buscar dirección'));
+  final resultado = find.descendant(
+    of: find.byType(BottomSheet),
+    matching: find.widgetWithText(ListTile, destino),
+  );
+  await _esperar(tester, resultado);
+  await usuario.firestore.waitForPendingWrites().timeout(_plazo);
+  expect(
+    (await busqueda.get(_servidor).timeout(_plazo)).data()?['consulta'],
+    consulta,
+  );
+  await _tocar(tester, resultado);
+  await usuario.firestore.waitForPendingWrites().timeout(_plazo);
+  final reciente = (await busqueda.get(_servidor).timeout(_plazo)).data()!;
+  expect(reciente['direccion'], destino);
+  expect(reciente['punto'], isA<GeoPoint>());
   await _tocar(tester, _boton('Continuar a tarifa'));
   await _esperar(tester, find.byTooltip('Origen'));
   await _esperar(tester, find.byTooltip('Destino'));
@@ -240,11 +260,22 @@ Future<void> _probarViaje(
           .docs
           .single;
   expect(viaje.data()['destino'], destino);
+  expect(viaje.data()['puntoDestino'], reciente['punto']);
   expect(viaje.data()['pago'], 'PagoRUT');
   expect(viaje.data()['conductor'], 'Conductor A');
   expect(viaje.data()['estado'], 'completado');
   expect(viaje.data()['calificacion'], 5);
   expect(viaje.data()['creadoEn'], isA<Timestamp>());
+  final documentoPago = await usuario
+      .collection('pagosFrecuentes')
+      .doc('PagoRUT')
+      .get(_servidor)
+      .timeout(_plazo);
+  expect(documentoPago.exists, isTrue);
+  final pagoFrecuente = documentoPago.data()!;
+  expect(pagoFrecuente['usos'], 1);
+  expect(pagoFrecuente['ultimoUso'], isA<Timestamp>());
+  expect(pagoFrecuente['ultimoViajeId'], viaje.id);
 
   // El aviso de calificación se desvanece antes de abrir el chat.
   await tester.pump(const Duration(seconds: 5));
@@ -277,6 +308,28 @@ Future<void> _probarViaje(
   await _esperar(tester, find.text('No hay viajes para esta búsqueda.'));
   await _escribir(tester, find.byType(TextField), destino.toUpperCase());
   await _esperar(tester, find.widgetWithText(ListTile, destino));
+
+  await _tocar(tester, _destinoNavegacion('Inicio'));
+  await _tocar(tester, find.widgetWithText(ListTile, 'Metro Salvador'));
+  await _esperar(tester, find.text('Búsquedas recientes'));
+  await _tocar(tester, find.widgetWithText(ListTile, consulta));
+  expect(
+    tester
+        .widget<TextFormField>(find.byType(TextFormField).at(1))
+        .controller!
+        .text,
+    destino,
+  );
+  await _tocar(tester, _boton('Continuar a tarifa'));
+  await _tocar(tester, _boton('Continuar a método de pago'));
+  await _esperar(tester, find.text('Pagos frecuentes'));
+  expect(find.text('PagoRUT'), findsOneWidget);
+  expect(find.widgetWithText(ListTile, 'Usado 1 vez'), findsOneWidget);
+  await _tocar(tester, find.text('PagoRUT'));
+  expect(_boton('Solicitar viaje'), findsOneWidget);
+  for (var i = 0; i < 3; i++) {
+    await _volver(tester);
+  }
 }
 
 Finder _boton(String texto) => find.ancestor(
