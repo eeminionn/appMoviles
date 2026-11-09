@@ -1,0 +1,138 @@
+rules_version = '2';
+
+// Modelo de InDrive: todas las subcolecciones pertenecen al UID en la ruta.
+// No se almacena documento padre ni datos de identidad en esta base.
+// viajes: origen/destino (2–120), servicio y pago de catálogo, tarifa entera
+// (1000–200000 CLP), autoAceptar (bool), estado de catálogo, conductor de demo
+// (o vacío), calificacion entera (0–5) y creadoEn (timestamp inmutable).
+// direcciones: nombre (2–40), direccion (2–120), tipo de catálogo y creadoEn
+// (timestamp inmutable). IDs fijos para domicilio/trabajo; ID automático en Otro.
+// consultas: tema (2–60), mensaje (4–400), creadoEn (timestamp), sin cambios.
+// mensajes: viajeId propio (1–128), texto (1–280), creadoEn (timestamp).
+// Todos los campos son obligatorios y las creaciones usan la hora del servidor.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function esDueno(uid) {
+      return autenticado() && request.auth.uid == uid;
+    }
+
+    function camposExactos(datos, campos) {
+      return datos.keys().hasAll(campos) && datos.keys().hasOnly(campos);
+    }
+
+    function textoValido(valor, minimo, maximo) {
+      return valor is string && valor.size() >= minimo && valor.size() <= maximo;
+    }
+
+    function enteroValido(valor, minimo, maximo) {
+      return valor is int && valor >= minimo && valor <= maximo;
+    }
+
+    function creacionDelServidor(datos) {
+      return datos.creadoEn is timestamp && datos.creadoEn == request.time;
+    }
+
+    function viajeValido(datos) {
+      return camposExactos(datos, [
+          'origen', 'destino', 'servicio', 'pago', 'tarifa', 'autoAceptar',
+          'estado', 'conductor', 'calificacion', 'creadoEn'
+        ])
+        && textoValido(datos.origen, 2, 120)
+        && textoValido(datos.destino, 2, 120)
+        && datos.servicio in ['Ciudad', 'Moto', 'Interurbano', 'Entregas', 'Fletes']
+        && datos.pago in ['Efectivo', 'Tenpo', 'MACH', 'Banco Santander', 'Mercado Pago', 'PagoRUT']
+        && enteroValido(datos.tarifa, 1000, 200000)
+        && datos.autoAceptar is bool
+        && datos.estado in ['buscando', 'confirmado', 'en curso', 'completado', 'cancelado']
+        && datos.conductor in ['', 'Conductor A', 'Conductor B']
+        && enteroValido(datos.calificacion, 0, 5)
+        && (datos.estado == 'completado' || datos.calificacion == 0)
+        && datos.creadoEn is timestamp;
+    }
+
+    function cambioViajeValido(antes, despues) {
+      let cambios = despues.diff(antes).affectedKeys();
+      return (antes.estado == 'buscando' && despues.estado == 'buscando'
+          && cambios.hasOnly(['tarifa', 'autoAceptar']))
+        || (antes.estado == 'buscando' && despues.estado == 'confirmado'
+          && despues.conductor in ['Conductor A', 'Conductor B']
+          && cambios.hasOnly(['estado', 'tarifa', 'conductor']))
+        || (antes.estado == 'confirmado' && despues.estado == 'en curso'
+          && cambios.hasOnly(['estado']))
+        || (antes.estado == 'en curso' && despues.estado == 'completado'
+          && cambios.hasOnly(['estado']))
+        || (antes.estado in ['buscando', 'confirmado', 'en curso']
+          && despues.estado == 'cancelado' && cambios.hasOnly(['estado']))
+        || (antes.estado == 'completado' && despues.estado == 'completado'
+          && despues.calificacion >= 1 && cambios.hasOnly(['calificacion']));
+    }
+
+    function direccionValida(datos, id) {
+      return camposExactos(datos, ['nombre', 'direccion', 'tipo', 'creadoEn'])
+        && textoValido(datos.nombre, 2, 40)
+        && textoValido(datos.direccion, 2, 120)
+        && ((datos.tipo == 'Domicilio' && id == 'domicilio')
+          || (datos.tipo == 'Trabajo' && id == 'trabajo')
+          || (datos.tipo == 'Otro' && id.matches('^[a-zA-Z0-9]{20}$')))
+        && datos.creadoEn is timestamp;
+    }
+
+    function consultaValida(datos) {
+      return camposExactos(datos, ['tema', 'mensaje', 'creadoEn'])
+        && textoValido(datos.tema, 2, 60)
+        && textoValido(datos.mensaje, 4, 400)
+        && creacionDelServidor(datos);
+    }
+
+    function mensajeValido(datos) {
+      return camposExactos(datos, ['viajeId', 'texto', 'creadoEn'])
+        && textoValido(datos.viajeId, 1, 128)
+        && datos.viajeId.matches('^[^/]+$')
+        && datos.viajeId != '.' && datos.viajeId != '..'
+        && textoValido(datos.texto, 1, 280)
+        && creacionDelServidor(datos);
+    }
+
+    match /usuarios/{uid}/viajes/{id} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid) && viajeValido(request.resource.data)
+        && creacionDelServidor(request.resource.data)
+        && request.resource.data.estado == 'buscando'
+        && request.resource.data.conductor == ''
+        && request.resource.data.calificacion == 0;
+      allow update: if esDueno(uid) && viajeValido(request.resource.data)
+        && cambioViajeValido(resource.data, request.resource.data);
+      allow delete: if esDueno(uid) && resource.data.estado in ['completado', 'cancelado'];
+    }
+
+    match /usuarios/{uid}/direcciones/{id} {
+      allow read, delete: if esDueno(uid);
+      allow create: if esDueno(uid) && direccionValida(request.resource.data, id)
+        && creacionDelServidor(request.resource.data);
+      allow update: if esDueno(uid) && direccionValida(request.resource.data, id)
+        && request.resource.data.creadoEn == resource.data.creadoEn;
+    }
+
+    match /usuarios/{uid}/consultas/{id} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid) && consultaValida(request.resource.data);
+    }
+
+    match /usuarios/{uid}/mensajes/{id} {
+      // El dueño puede limpiar mensajes después de borrar el viaje. La interfaz
+      // solo muestra hilos de viajes presentes en su historial.
+      allow read, delete: if esDueno(uid);
+      allow create: if esDueno(uid) && mensajeValido(request.resource.data)
+        && existsAfter(/databases/$(database)/documents/usuarios/$(uid)/viajes/$(request.resource.data.viajeId));
+    }
+
+    match /{documento=**} {
+      allow read, write: if false;
+    }
+  }
+}

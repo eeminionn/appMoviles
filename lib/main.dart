@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 
 import 'auth/auth_gate.dart';
 import 'firebase_options.dart';
+import 'theme/theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -17,12 +18,13 @@ class MainApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      //Para que no se buggen la cajas pq sino se estiran xd
+      // El tema se comparte en todas las pantallas.
       debugShowCheckedModeBanner: false,
       scrollBehavior: const MaterialScrollBehavior().copyWith(
         overscroll: false,
       ),
-      title: 'E_Abarca',
+      title: 'InDrive',
+      theme: AppTheme.tema,
       home: const AuthGate(),
     );
   }

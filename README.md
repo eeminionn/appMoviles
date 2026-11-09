@@ -1,124 +1,48 @@
-# appMoviles
-Repo para el ramo Desarrollo De App Móviles con [@joseSantorcuato](https://github.com/joseSantorcuato)
+# InDrive
 
-Este repositorio es la base de la app. Los cambios se incorporan sobre el ejemplo del profesor y se guardan en `main`.
+Prototipo de pasajeros para Desarrollo de Aplicaciones Móviles con [@joseSantorcuato](https://github.com/joseSantorcuato). Parte del [referente de InDrive en Figma](https://www.figma.com/design/NYWjQGbz2z6YSUq3c5zHBV/DesignSystem-InDrive--Copy-?node-id=286-14332). La [copia de trabajo](https://www.figma.com/design/rRx9CyU5mhLMszKSztUFmL/DesignSystem-InDrive--Copy---Copia-?node-id=4002-6948) contiene la página **Prototipo InDrive**, con los tres flujos conectados.
 
-## Referencias de programación
+- **Viajes:** busca origen y destino, elige servicio, tarifa y pago, acepta una oferta y sigue el viaje en Actividad. Puedes buscar, filtrar, calificar y borrar viajes cerrados.
+- **Direcciones:** guarda domicilio, trabajo u otro lugar; edítalo, bórralo o úsalo para pedir un viaje.
+- **Soporte:** navega por temas, lee artículos y guarda consultas de prueba. También puedes abrir Seguridad, copiar el resumen de un viaje y guardar mensajes de demo.
 
-Los [ejemplos originales y la guía de estilo](docs/referencias/README.md) quedan disponibles para consultarlos al desarrollar la app. Mantendremos el estilo simple de esos ejemplos.
+Los mapas son los del prototipo. Las ofertas, el viaje, el pago y el chat se demuestran dentro de la app: no hay conductores ni cobros reales. Firebase guarda los registros de cada cuenta.
 
-## Configurar Firebase en un clon nuevo
+## Ejecutar en Android
 
-La app Android usa el proyecto **APP Flutter** (`app-flutter-20261019-4d8a`) y el paquete `com.example.app_moviles`. `firebase_core` y `cloud_firestore` ya están declarados en las dependencias.
+El proyecto Firebase se llama **indrive26** (ID `app-flutter-20261019-4d8a`). Su app Android es `com.example.app_moviles` y usa Firebase Authentication (correo y Google) y Cloud Firestore. El nombre visible en Android es **InDrive**.
 
-Con Flutter y Node.js/npm instalados, prepara las herramientas e inicia sesión con una cuenta que tenga acceso al proyecto:
+En un clon nuevo, instala Flutter, el SDK de Android, Node.js y las herramientas de Firebase. Inicia sesión con una cuenta que tenga acceso al proyecto:
 
 ```sh
 npm install -g firebase-tools
-npx -y firebase-tools@latest login
+firebase login
 dart pub global activate flutterfire_cli
-```
-
-En macOS, si la terminal no reconoce `flutterfire`, agrega esta línea a `~/.zshrc` y ejecuta `source ~/.zshrc`:
-
-```sh
 export PATH="$PATH:$HOME/.pub-cache/bin"
-```
-
-Desde la carpeta del repositorio, genera la configuración Android:
-
-```sh
 flutter pub get
 flutterfire configure --project=app-flutter-20261019-4d8a --platforms=android --android-package-name=com.example.app_moviles
 ```
 
-Este comando genera `lib/firebase_options.dart` y `android/app/google-services.json`. Ambos archivos se mantienen locales y están ignorados por Git. Cada clon debe ejecutar la configuración de FlutterFire antes de analizar o ejecutar la app.
-
-La base de datos Firestore todavía no está creada; tampoco hay reglas ni operaciones para crear, leer, actualizar o eliminar datos.
-
-Referencia: [configuración oficial de Firebase para Flutter](https://firebase.google.com/docs/flutter/setup).
-
-## Autenticación y huellas Android
-
-`firebase_auth` y `google_sign_in` ya están agregados. Los comandos para incorporarlos son:
-
-```sh
-flutter pub add firebase_auth
-flutter pub add google_sign_in
-```
-
-Para obtener SHA-1 y SHA-256, abre la carpeta `android` desde la raíz del proyecto y ejecuta el reporte de firma. En macOS o Linux:
-
-```sh
-cd android
-./gradlew signingReport
-```
-
-En Windows (PowerShell):
-
-```powershell
-cd android
-.\gradlew.bat signingReport
-```
-
-Las huellas de depuración obtenidas en esta máquina están en [android-sha-debug.txt](docs/android-sha-debug.txt). La variante `release` actualmente usa la misma firma `debug`; estas huellas no corresponden a un certificado de producción.
-
-Después, vuelve a la raíz del proyecto y ejecuta otra vez el comando `flutterfire configure` de la sección anterior para actualizar los archivos locales.
-
-La entrada de la app pasa por `lib/auth/auth_gate.dart`: muestra `LoginScreen` cuando no hay sesión y la pantalla original del ejemplo (`HomeScreen`) cuando Firebase reconoce al usuario. La sesión se conserva al volver a abrir la app.
-
-`lib/auth/login_screen.dart` incorpora el ejemplo del profesor para iniciar sesión con correo y contraseña o con Google. El acceso con correo requiere una cuenta existente y el proveedor **Correo electrónico/contraseña** habilitado en Firebase Authentication; esta pantalla no crea cuentas. Para Google, habilita el proveedor **Google**, registra las huellas de la app Android y ejecuta de nuevo `flutterfire configure` para descargar la configuración OAuth. La inicialización de Google se espera una sola vez antes del primer intento de acceso.
-
-El diseño original se conserva en `lib/views/home_screen.dart`. `lib/theme/theme.dart` contiene los espacios compartidos que usa el formulario. Consulta la [guía de Google para Flutter](https://firebase.google.com/docs/auth/flutter/federated-auth#google).
-
-## Ejecutar en Android
-
-Necesitas Flutter, el SDK de Android y un emulador Android configurado. Desde la carpeta del proyecto, instala las dependencias:
-
-```sh
-flutter pub get
-```
-
-Lista los emuladores disponibles e inicia uno usando su identificador:
+Los archivos de configuración que genera FlutterFire se mantienen locales. Para usar Google en otro equipo, registra sus huellas de firma de depuración en Firebase y vuelve a ejecutar FlutterFire. El comando es `./gradlew signingReport` desde la carpeta Android; en Windows, `.\gradlew.bat signingReport`.
 
 ```sh
 flutter emulators
-flutter emulators --launch <id>
-```
-
-Reemplaza `<id>` por el identificador mostrado en la lista. Espera a que Android termine de iniciar.
-
-En VS Code, selecciona el emulador Android en el selector de dispositivos y presiona **F5**. También puedes ejecutar desde la terminal:
-
-```sh
+flutter emulators --launch emulador
 flutter devices
-flutter run -d <id_del_dispositivo>
+flutter run -d emulator-5554
 ```
 
-Usa el identificador Android que muestra `flutter devices`. Si solo hay un dispositivo disponible, basta con `flutter run`.
+Usa los identificadores que aparezcan en tu equipo. En Visual Studio Code también puedes seleccionar el emulador y presionar **F5**. Crea una cuenta de prueba con correo o usa Google en un emulador con servicios de Google.
 
-## Validar y subir cambios
-
-Antes de guardar un cambio, revisa que la app funcione y ejecuta el análisis:
+## Comprobar la entrega
 
 ```sh
 flutter analyze
+flutter test
+flutter build apk --debug
+bash tools/probar_android.sh emulator-5554
 ```
 
-Si el proyecto tiene pruebas, ejecuta también `flutter test`. Para cambios de interfaz o comportamiento, compruébalos en Android.
+La última prueba requiere Java y un emulador iniciado. Levanta Authentication y Firestore en el equipo y prueba las pantallas con datos ficticios. Las [reglas de Firestore](firestore.rules) separan las cuentas. La [guía de presentación](docs/entrega.md) relaciona la app con cada parte de la rúbrica.
 
-Revisa los archivos modificados y el diff antes de preparar el commit:
-
-```sh
-git status
-git diff
-```
-
-Agrega los archivos correspondientes al cambio con `git add`, revisa `git diff --cached` y guarda una descripción clara:
-
-```sh
-git commit -m "Describe el cambio realizado"
-git push origin main
-```
-
-No subas compilaciones, cachés, credenciales ni claves de firma. No uses force push ni reescribas el historial compartido.
+Los [ejemplos del profesor](docs/referencias/README.md) se conservan para consultar su estilo. La fuente [Inter](https://github.com/rsms/inter/releases/tag/v4.1) se incluye con su licencia; el mapa y el logo provienen del referente de Figma.

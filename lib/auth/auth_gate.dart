@@ -33,7 +33,8 @@ class AuthGate extends StatelessWidget {
 
         // Mostrar la pantalla principal si existe una sesión
         if (snapshot.hasData) {
-          return const HomeScreen();
+          final usuario = snapshot.data!;
+          return HomeScreen(key: ValueKey(usuario.uid), usuario: usuario);
         }
 
         // Mostrar el login si no existe una sesión
