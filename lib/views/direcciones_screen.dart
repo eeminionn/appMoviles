@@ -248,8 +248,9 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
                 children: [
                   Stack(
                     children: [
-                      const MapaViaje(
+                      MapaViaje(
                         altura: AppSize.mapaTarifa + AppSpacing.spacing12,
+                        destino: direccionController.text.trim(),
                       ),
                       SafeArea(
                         child: Padding(
@@ -353,7 +354,8 @@ class _FormularioDireccionState extends State<_FormularioDireccion> {
                         onTap: guardando
                             ? null
                             : () {
-                                direccionController.text = lugar.value;
+                                direccionController.text =
+                                    '${lugar.key}, ${lugar.value}';
                                 if (nombreController.text.trim().isEmpty) {
                                   nombreController.text = lugar.key;
                                 }

@@ -1,12 +1,18 @@
 # InDrive
 
-Prototipo de pasajeros para Desarrollo de Aplicaciones Móviles con [@joseSantorcuato](https://github.com/joseSantorcuato). Parte del [referente de InDrive en Figma](https://www.figma.com/design/NYWjQGbz2z6YSUq3c5zHBV/DesignSystem-InDrive--Copy-?node-id=286-14332). La [copia de trabajo](https://www.figma.com/design/rRx9CyU5mhLMszKSztUFmL/DesignSystem-InDrive--Copy---Copia-?node-id=4002-6948) contiene la página **Prototipo InDrive**, con los tres flujos conectados.
+Aplicación para organizar viajes y guardar direcciones, desarrollada para Desarrollo de Aplicaciones Móviles con [@joseSantorcuato](https://github.com/joseSantorcuato). Parte del [diseño de InDrive en Figma](https://www.figma.com/design/NYWjQGbz2z6YSUq3c5zHBV/DesignSystem-InDrive--Copy-?node-id=286-14332). La [copia de trabajo](https://www.figma.com/design/rRx9CyU5mhLMszKSztUFmL/DesignSystem-InDrive--Copy---Copia-?node-id=4002-6948) contiene la página **Prototipo InDrive**, con los tres flujos conectados.
 
-- **Viajes:** busca origen y destino, elige servicio, tarifa y pago, acepta una oferta y sigue el viaje en Actividad. Puedes buscar, filtrar, calificar y borrar viajes cerrados.
-- **Direcciones:** guarda domicilio, trabajo u otro lugar; edítalo, bórralo o úsalo para pedir un viaje.
-- **Soporte:** navega por temas, lee artículos y guarda consultas de prueba. También puedes abrir Seguridad, copiar el resumen de un viaje y guardar mensajes de demo.
+- Busca origen y destino, consulta el recorrido por calles y registra tu viaje en Actividad. Puedes buscar, filtrar, calificar y borrar viajes cerrados.
+- Guarda domicilio, trabajo u otro lugar. Luego puedes editarlo, eliminarlo o usarlo al elegir un destino.
+- Lee artículos en Soporte y guarda consultas en tu cuenta. También puedes abrir Seguridad, copiar el resumen de un viaje y guardar notas.
 
-Los mapas son los del prototipo. Las ofertas, el viaje, el pago y el chat se demuestran dentro de la app: no hay conductores ni cobros reales. Firebase guarda los registros de cada cuenta.
+Firebase guarda los registros de cada cuenta. Las ofertas son opciones predefinidas de la app, el estado del viaje se actualiza manualmente y el medio de pago se guarda como preferencia del viaje.
+
+## Mapa y rutas
+
+El mapa se abre en el sector de la Universidad del Desarrollo. `flutter_map` muestra las imágenes del mapa de OpenStreetMap y permite mover y acercar la vista. `geocoding` usa el servicio de Android para ubicar las direcciones ingresadas. La vista previa y el detalle marcan el origen y el destino que elegiste y muestran el recorrido en auto que calcula el servicio de rutas. La función requiere conexión a internet y se limita a consultar el trayecto en el mapa. [Atribución de OpenStreetMap](https://www.openstreetmap.org/copyright) · [Política de uso de imágenes del mapa](https://operations.osmfoundation.org/policies/tiles/)
+
+Para calcular una ruta, la app envía las coordenadas de ambos puntos al servidor de Open Source Routing Machine (OSRM) operado por FOSSGIS. El servidor registra las peticiones. [Política de uso y privacidad del servidor](https://routing.openstreetmap.de/about.html)
 
 ## Ejecutar en Android
 
@@ -32,7 +38,7 @@ flutter devices
 flutter run -d emulator-5554
 ```
 
-Usa los identificadores que aparezcan en tu equipo. En Visual Studio Code también puedes seleccionar el emulador y presionar **F5**. Crea una cuenta de prueba con correo o usa Google en un emulador con servicios de Google.
+Usa los identificadores que aparezcan en tu equipo. En Visual Studio Code también puedes seleccionar el emulador y presionar **F5**. Puedes crear una cuenta con correo o iniciar sesión con Google en un emulador con servicios de Google.
 
 ## Comprobar la entrega
 
@@ -45,4 +51,4 @@ bash tools/probar_android.sh emulator-5554
 
 La última prueba requiere Java y un emulador iniciado. Levanta Authentication y Firestore en el equipo y prueba las pantallas con datos ficticios. Las [reglas de Firestore](firestore.rules) separan las cuentas. La [guía de presentación](docs/entrega.md) relaciona la app con cada parte de la rúbrica.
 
-Los [ejemplos del profesor](docs/referencias/README.md) se conservan para consultar su estilo. La fuente [Inter](https://github.com/rsms/inter/releases/tag/v4.1) se incluye con su licencia; el mapa y el logo provienen del referente de Figma.
+Los [ejemplos del profesor](docs/referencias/README.md) se conservan para consultar su estilo. La fuente [Inter](https://github.com/rsms/inter/releases/tag/v4.1) se incluye con su licencia. El logo proviene del diseño de Figma.

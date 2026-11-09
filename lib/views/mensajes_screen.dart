@@ -21,7 +21,7 @@ class MensajesScreen extends StatelessWidget {
         builder: (context, snapshot) {
           if (snapshot.hasError) {
             return const Center(
-              child: Text('No se pudieron cargar las conversaciones.'),
+              child: Text('No se pudieron cargar los viajes.'),
             );
           }
           if (!snapshot.hasData) {
@@ -34,7 +34,9 @@ class MensajesScreen extends StatelessWidget {
               .toList();
           if (chats.isEmpty) {
             return const Center(
-              child: Text('Acepta una oferta para abrir el chat del viaje.'),
+              child: Text(
+                'Acepta una oferta para guardar notas sobre el viaje.',
+              ),
             );
           }
           return ListView.separated(
@@ -121,7 +123,7 @@ class _ChatViajeScreenState extends State<ChatViajeScreen> {
     } on FirebaseException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo guardar el mensaje.')),
+        const SnackBar(content: Text('No se pudo guardar la nota.')),
       );
     } finally {
       if (mounted) setState(() => enviando = false);
@@ -131,12 +133,12 @@ class _ChatViajeScreenState extends State<ChatViajeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.conductor)),
+      appBar: AppBar(title: Text('Notas del viaje · ${widget.conductor}')),
       body: StreamBuilder(
         stream: viaje,
         builder: (context, estado) {
           if (estado.hasError) {
-            return const Center(child: Text('No se pudo abrir el chat.'));
+            return const Center(child: Text('No se pudieron abrir las notas.'));
           }
           if (!estado.hasData) {
             return const Center(child: CircularProgressIndicator());
@@ -152,7 +154,7 @@ class _ChatViajeScreenState extends State<ChatViajeScreen> {
                 const Padding(
                   padding: EdgeInsets.all(AppSpacing.spacing16),
                   child: Text(
-                    'Chat de demostración. Los mensajes quedan en tu cuenta.',
+                    'Las notas de este viaje se guardan en tu cuenta.',
                   ),
                 ),
                 Expanded(
@@ -176,7 +178,7 @@ class _ChatViajeScreenState extends State<ChatViajeScreen> {
                         });
                       if (docs.isEmpty) {
                         return const Center(
-                          child: Text('Aún no hay mensajes.'),
+                          child: Text('Aún no hay notas.'),
                         );
                       }
                       return ListView.builder(
@@ -208,10 +210,10 @@ class _ChatViajeScreenState extends State<ChatViajeScreen> {
                     textInputAction: TextInputAction.send,
                     onSubmitted: (_) => guardarMensaje(),
                     decoration: InputDecoration(
-                      hintText: 'Escribe un mensaje',
+                      hintText: 'Escribe una nota',
                       counterText: '',
                       suffixIcon: IconButton(
-                        tooltip: 'Guardar mensaje',
+                        tooltip: 'Guardar nota',
                         onPressed: enviando ? null : guardarMensaje,
                         icon: const Icon(Icons.send_outlined),
                       ),

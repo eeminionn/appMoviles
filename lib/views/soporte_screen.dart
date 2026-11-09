@@ -8,25 +8,25 @@ const temasSoporte = <String, Map<String, String>>{
     'Servicio estándar':
         'Indica el origen y el destino, revisa la tarifa y elige una oferta antes de confirmar. Puedes revisar el estado de la solicitud en Actividad.',
     'Seguridad':
-        'Antes de subir, verifica que coincidan el vehículo y la persona que muestra la app. Puedes revisar los consejos en Seguridad desde el menú.',
+        'Antes de salir, revisa los consejos del Centro de seguridad desde el menú.',
     'Preguntas':
         'Si quieres cambiar el monto, usa Otro monto mientras la solicitud está buscando ofertas. Si la solicitud ya fue aceptada, puedes cancelarla y hacer una nueva.',
   },
   'Interciudad': {
     'Planificar el viaje':
-        'Antes de elegir una oferta, acuerda el punto de encuentro y verifica el destino. En la demostración no se contacta a un conductor real.',
+        'Verifica el origen y el destino antes de confirmar. Puedes copiar el resumen del viaje desde Actividad para compartirlo con una persona de confianza.',
     'Equipaje':
-        'Para un viaje real, acuerda con el conductor el espacio que necesitas antes de salir. No incluyas objetos de valor en una consulta de prueba.',
+        'Antes de salir, considera el número de maletas y el espacio que vas a necesitar.',
   },
   'Fletes': {
     'Preparar la carga':
-        'Antes de pedir un flete real, mide la carga y verifica que se pueda mover por los accesos de origen y destino. Selecciona el servicio Fletes para probar el recorrido en la app.',
+        'Mide la carga y verifica que quepa por los accesos de origen y destino. Puedes seleccionar Fletes al organizar un viaje.',
     'Entregas':
-        'El servicio Entregas está pensado para paquetes pequeños. En este prototipo solo puedes revisar el flujo de solicitud y registrar una consulta de prueba.',
+        'Para organizar el traslado de un paquete pequeño, selecciona Entregas e indica dónde quieres retirarlo y dejarlo.',
   },
   'Otro': {
     'Pagos':
-        'Puedes elegir un medio de pago al solicitar un viaje. La selección se guarda con la solicitud y esta app de demostración no procesa cobros.',
+        'Puedes elegir un medio de pago al solicitar un viaje. La selección y el monto quedan guardados en el resumen de Actividad.',
     'Direcciones guardadas':
         'Abre Mis direcciones desde el menú para guardar domicilio, trabajo u otro lugar. Usa el lápiz para editar o eliminar un lugar.',
   },
@@ -36,9 +36,9 @@ const articulosPerfil = <String, String>{
   'Seguridad de la cuenta':
       'Usa una contraseña distinta para cada servicio. Cierra sesión desde Perfil si usas un equipo compartido.',
   'Datos de seguridad':
-      'Nunca incluyas contraseñas, códigos de verificación, teléfonos ni direcciones reales al practicar el envío de una consulta.',
+      'Al guardar una consulta, evita incluir contraseñas, códigos de verificación o datos bancarios.',
   'Comunicación':
-      'Abre Mensajes para ver el historial de un viaje y escribir un mensaje de prueba. Para explicar un problema, describe el paso en que ocurrió y lo que esperabas que pasara. En esta app no se contacta a conductores ni al soporte de inDrive.',
+      'Abre Mensajes para consultar las notas que guardaste sobre un viaje. Si encuentras un problema, puedes describirlo y guardar la consulta en tu cuenta.',
   'Otro':
       'En Perfil puedes revisar la sesión actual. Para cambiar una contraseña olvidada, usa la opción de recuperación en la pantalla de inicio de sesión.',
 };
@@ -73,9 +73,9 @@ class SoporteScreen extends StatelessWidget {
           _FormularioConsulta(tema: tema, consultas: consultas),
     );
     if (!context.mounted || guardada != true) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Consulta de prueba guardada')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Consulta guardada')));
   }
 
   Widget fila(String titulo, VoidCallback alTocar) => ListTile(
@@ -100,7 +100,7 @@ class SoporteScreen extends StatelessWidget {
                 const SizedBox(height: AppSpacing.spacing32),
                 FilledButton(
                   onPressed: () => registrarConsulta(context, titulo),
-                  child: const Text('Registrar consulta de prueba'),
+                  child: const Text('Registrar consulta'),
                 ),
                 TextButton(
                   onPressed: () => abrirConsultas(context),
@@ -247,16 +247,14 @@ class _FormularioConsultaState extends State<_FormularioConsulta> {
             children: [
               Text(widget.tema, style: tema.textTheme.titleLarge),
               const SizedBox(height: AppSpacing.spacing8),
-              const Text('Escribe un ejemplo sin datos personales.'),
+              const Text('Describe tu consulta sin incluir datos personales.'),
               const SizedBox(height: AppSpacing.spacing16),
               TextFormField(
                 controller: mensajeController,
                 enabled: !guardando,
                 maxLength: 400,
                 maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Mensaje de prueba',
-                ),
+                decoration: const InputDecoration(labelText: 'Mensaje'),
                 validator: (valor) => (valor ?? '').trim().length < 4
                     ? 'Escribe un mensaje de al menos 4 caracteres'
                     : null,
@@ -316,9 +314,7 @@ class _MisConsultasScreenState extends State<_MisConsultasScreen> {
           }
           final documentos = snapshot.data!.docs;
           if (documentos.isEmpty) {
-            return const Center(
-              child: Text('Aún no tienes consultas de prueba.'),
-            );
+            return const Center(child: Text('Aún no tienes consultas.'));
           }
           return ListView.separated(
             padding: const EdgeInsets.all(AppSpacing.spacing20),

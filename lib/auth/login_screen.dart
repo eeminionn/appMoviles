@@ -169,7 +169,9 @@ class _LoginScreenState extends State<LoginScreen> {
                   style: textos.headlineLarge,
                 ),
                 const SizedBox(height: AppSpacing.spacing8),
-                const Text('Viajes de demostración'),
+                const Text(
+                  'Organiza tus viajes y guarda tus lugares favoritos.',
+                ),
 
                 const SizedBox(height: AppSpacing.spacing24),
 

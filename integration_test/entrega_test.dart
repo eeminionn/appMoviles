@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -50,7 +51,7 @@ void main() {
     if (auth != null) await auth.signOut();
   });
 
-  testWidgets('Entrega Android: direcciones, soporte y viaje de demostración', (
+  testWidgets('Entrega Android: mapa, direcciones, soporte y viaje', (
     tester,
   ) async {
     // Inyectar el teclado de pruebas sin cambiar los canales de Firebase.
@@ -93,7 +94,7 @@ Future<void> _probarDirecciones(
   WidgetTester tester,
   DocumentReference<Map<String, dynamic>> usuario,
 ) async {
-  const primeraDireccion = 'Calle Ficticia 10';
+  const primeraDireccion = 'Avenida Plaza 680, Las Condes';
   const nuevaDireccion = 'Calle Ficticia 20';
   final domicilio = usuario.collection('direcciones').doc('domicilio');
 
@@ -101,6 +102,7 @@ Future<void> _probarDirecciones(
   await _tocar(tester, find.text('Guardar como domicilio'));
   await _escribir(tester, find.byType(TextFormField), primeraDireccion);
   await _tocar(tester, _boton('Ver en el mapa'));
+  await _esperar(tester, find.byTooltip('Dirección'));
   await _capturar(tester, 'guardar-direccion');
   await _tocar(tester, _boton('Guardar'));
   await _esperar(tester, find.widgetWithText(ListTile, primeraDireccion));
@@ -133,7 +135,7 @@ Future<void> _probarSoporte(
   WidgetTester tester,
   DocumentReference<Map<String, dynamic>> usuario,
 ) async {
-  const mensaje = 'Quiero probar el historial de mensajes de demostración.';
+  const mensaje = '¿Dónde puedo consultar el historial de un viaje?';
 
   await _abrirMenu(tester, 'Soporte');
   await _tocar(tester, find.widgetWithText(ListTile, 'Ciudad'));
@@ -141,10 +143,10 @@ Future<void> _probarSoporte(
   await _tocar(tester, find.text('Comunicación'));
   expect(find.textContaining('Abre Mensajes'), findsOneWidget);
   await _capturar(tester, 'comunicacion');
-  await _tocar(tester, _boton('Registrar consulta de prueba'));
+  await _tocar(tester, _boton('Registrar consulta'));
   await _escribir(tester, find.byType(TextFormField), mensaje);
   await _tocar(tester, _boton('Guardar consulta'));
-  await _esperar(tester, find.text('Consulta de prueba guardada'));
+  await _esperar(tester, find.text('Consulta guardada'));
   await _tocar(tester, find.text('Mis consultas'));
   await _esperar(tester, find.text(mensaje));
 
@@ -168,20 +170,27 @@ Future<void> _probarViaje(
   WidgetTester tester,
   DocumentReference<Map<String, dynamic>> usuario,
 ) async {
-  const destino = 'Destino de prueba';
-  const mensaje = 'Estoy en el punto de encuentro de la demo.';
+  const destino = 'Metro Salvador';
+  const mensaje = 'Punto de encuentro junto a la entrada principal.';
 
-  await _tocar(tester, find.text('Buscar destino'));
+  await _tocar(tester, find.widgetWithText(InkWell, 'Buscar destino'));
   await _escribir(tester, find.byType(TextFormField).at(1), destino);
   await _tocar(tester, _boton('Continuar a tarifa'));
+  await _esperar(tester, find.byTooltip('Origen'));
+  await _esperar(tester, find.byTooltip('Destino'));
+  if (_capturas) {
+    await _esperar(tester, find.byWidgetPredicate((w) => w is PolylineLayer));
+    await _tocar(tester, find.byTooltip('Centrar mapa'));
+    await _capturar(tester, 'ruta-por-calles');
+  }
   await _tocar(tester, _boton('Continuar a método de pago'));
   await _tocar(tester, find.text('PagoRUT'));
   await _tocar(tester, _boton('Solicitar viaje'));
   await _tocar(tester, _boton('Ver ofertas'));
   await _capturar(tester, 'ofertas');
   await _tocar(tester, find.text('Aceptar oferta de Conductor A'));
-  await _tocar(tester, _boton('Iniciar viaje demo'));
-  await _tocar(tester, _boton('Completar viaje demo'));
+  await _tocar(tester, _boton('Marcar inicio del viaje'));
+  await _tocar(tester, _boton('Marcar viaje como completado'));
   await _tocar(
     tester,
     find.byWidgetPredicate(
@@ -211,12 +220,12 @@ Future<void> _probarViaje(
   await _tocar(
     tester,
     find.ancestor(
-      of: find.text('Chat de demo'),
+      of: find.text('Notas del viaje'),
       matching: find.byWidgetPredicate((widget) => widget is TextButton),
     ),
   );
   await _escribir(tester, find.byType(TextField), mensaje);
-  await _tocar(tester, find.byTooltip('Guardar mensaje'));
+  await _tocar(tester, find.byTooltip('Guardar nota'));
   await _esperar(tester, find.widgetWithText(Card, mensaje));
   await usuario.firestore.waitForPendingWrites().timeout(_plazo);
   final chat =

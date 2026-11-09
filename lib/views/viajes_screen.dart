@@ -15,10 +15,7 @@ const _tarifaMaxima = 200000;
 const _tarifaRecomendada = 2000;
 const _tarifaComfort = 4700;
 const _esperaOferta = Duration(seconds: 3);
-const _conductoresDemo = {
-  'Conductor A': (minutos: 7, vehiculo: 'Bronco', patente: 'DEMO-A'),
-  'Conductor B': (minutos: 9, vehiculo: 'Bronco', patente: 'DEMO-B'),
-};
+const _vehiculosOfertas = {'Conductor A': 'Bronco', 'Conductor B': 'Bronco'};
 
 enum _DecisionOferta { conductorA, conductorB, cancelar }
 
@@ -199,10 +196,11 @@ class NuevoViajeScreen extends StatefulWidget {
 
 class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
   final formKey = GlobalKey<FormState>();
-  final origen = TextEditingController(
-    text: 'Universidad del Desarrollo, Av. Plaza',
-  );
+  static const origenInicial = 'Universidad del Desarrollo, Av. Plaza';
+  final origen = TextEditingController(text: origenInicial);
   late final destino = TextEditingController(text: widget.destinoInicial);
+  String? origenMapa = origenInicial;
+  late String? destinoMapa = widget.destinoInicial.trim();
   late final direcciones = FirebaseFirestore.instance
       .collection('usuarios')
       .doc(widget.uid)
@@ -229,7 +227,13 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
   void continuar() {
     if (paso == 0 && formKey.currentState?.validate() != true) return;
     FocusScope.of(context).unfocus();
-    setState(() => paso++);
+    setState(() {
+      if (paso == 0) {
+        origenMapa = origen.text.trim();
+        destinoMapa = destino.text.trim();
+      }
+      paso++;
+    });
   }
 
   Future<void> otroMonto() async {
@@ -348,11 +352,18 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
                 title: Text(nombre),
                 subtitle: nombre == direccion ? null : Text(direccion),
                 onTap: () {
-                  final etiqueta = direccion.isEmpty || nombre == direccion
+                  final etiqueta = guardada
+                      ? direccion
+                      : direccion.isEmpty || nombre == direccion
                       ? nombre
                       : '$nombre, $direccion';
                   setState(() {
                     campo.text = etiqueta.length <= 120 ? etiqueta : direccion;
+                    if (buscaOrigen) {
+                      origenMapa = campo.text;
+                    } else {
+                      destinoMapa = campo.text;
+                    }
                   });
                   FocusScope.of(context).unfocus();
                 },
@@ -383,6 +394,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
             onChanged: (_) => setState(() {
               buscaOrigen = true;
               filtroSugerencias = true;
+              origenMapa = null;
             }),
             decoration: const InputDecoration(
               labelText: 'Origen',
@@ -402,6 +414,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
             onChanged: (_) => setState(() {
               buscaOrigen = false;
               filtroSugerencias = true;
+              destinoMapa = null;
             }),
             decoration: const InputDecoration(
               labelText: 'Buscar destino',
@@ -480,7 +493,7 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
             onTap: guardando ? null : () => setState(() => pago = opcion),
           ),
         const SizedBox(height: AppSpacing.spacing16),
-        const Text('Viaje de demostración. No se realizará ningún cobro.'),
+        const Text('El medio de pago se guarda con tu solicitud.'),
         const SizedBox(height: AppSpacing.spacing8),
         FilledButton(
           onPressed: pago == null || guardando ? null : solicitar,
@@ -512,7 +525,8 @@ class _NuevoViajeScreenState extends State<NuevoViajeScreen> {
             if (paso < 2)
               MapaViaje(
                 altura: paso == 0 ? AppSize.mapaInicio : AppSize.mapaTarifa,
-                conRuta: paso == 1,
+                origen: origenMapa,
+                destino: destinoMapa,
               ),
             _panelViaje(mostrarGuia: paso < 2, switch (paso) {
               0 => formularioRuta(),
@@ -741,7 +755,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
     final confirma = await _confirmar(
       context,
       titulo: 'Cancelar viaje',
-      mensaje: '¿Quieres cancelar esta solicitud de demostración?',
+      mensaje: '¿Quieres cancelar esta solicitud de viaje?',
       accion: 'Cancelar viaje',
     );
     if (!mounted) return;
@@ -802,7 +816,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
         return true;
       });
       if (mounted && aceptada) {
-        _aviso(context, 'Oferta demo aceptada automáticamente.');
+        _aviso(context, 'Oferta aceptada automáticamente.');
       }
     } catch (_) {
       if (mounted) {
@@ -814,23 +828,20 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
   }
 
   Widget oferta(String conductor, int monto, VoidCallback aceptar) {
-    final demo = _conductoresDemo[conductor]!;
+    final vehiculo = _vehiculosOfertas[conductor]!;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.spacing12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              '${clp(monto)} · ${demo.minutos} min',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text(clp(monto), style: Theme.of(context).textTheme.titleMedium),
             ListTile(
               contentPadding: EdgeInsets.zero,
               dense: true,
               leading: const CircleAvatar(child: Icon(Icons.person_outline)),
               title: Text(conductor),
-              subtitle: Text('${demo.vehiculo} · ${demo.patente}'),
+              subtitle: Text('Vehículo · $vehiculo'),
               onTap: aceptar,
             ),
             OutlinedButton(
@@ -851,7 +862,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         insetPadding: const EdgeInsets.all(AppSpacing.spacing16),
-        title: const Text('Ofertas de ejemplo'),
+        title: const Text('Ofertas sugeridas'),
         scrollable: true,
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -914,7 +925,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
         contentPadding: EdgeInsets.zero,
         title: const Text('Aceptar automáticamente'),
         subtitle: const Text(
-          'Confirma la primera oferta demo que respete tu tarifa.',
+          'Confirma la primera oferta que respete tu tarifa.',
         ),
         value: autoAceptar,
         onChanged: operando
@@ -933,12 +944,12 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
     if (estado == 'confirmado')
       FilledButton(
         onPressed: operando ? null : () => actualizar({'estado': 'en curso'}),
-        child: const Text('Iniciar viaje demo'),
+        child: const Text('Marcar inicio del viaje'),
       ),
     if (estado == 'en curso')
       FilledButton(
         onPressed: operando ? null : () => actualizar({'estado': 'completado'}),
-        child: const Text('Completar viaje demo'),
+        child: const Text('Marcar viaje como completado'),
       ),
     if (!_cerrado(estado))
       OutlinedButton(
@@ -977,11 +988,11 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
     final estado = datos['estado'] as String? ?? '';
     final conductor = datos['conductor'] as String? ?? '';
     final resumen = [
-      'InDrive · Viaje de demostración',
+      'InDrive · Resumen del viaje',
       'Origen: ${datos['origen']}',
       'Destino: ${datos['destino']}',
       'Estado: ${_estados[estado] ?? estado}',
-      if (conductor.isNotEmpty) 'Conductor demo: $conductor',
+      if (conductor.isNotEmpty) 'Oferta elegida: $conductor',
     ].join('\n');
     try {
       await Clipboard.setData(ClipboardData(text: resumen));
@@ -996,7 +1007,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
     final tarifa = datos['tarifa'] as int? ?? 0;
     final autoAceptar = datos['autoAceptar'] as bool? ?? false;
     final conductor = datos['conductor'] as String? ?? '';
-    final demo = _conductoresDemo[conductor];
+    final vehiculo = _vehiculosOfertas[conductor];
     final servicio = datos['servicio'] as String? ?? 'Ciudad';
     programarAuto(activa: estado == 'buscando' && autoAceptar, tarifa: tarifa);
 
@@ -1006,7 +1017,8 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
           altura: estado == 'buscando'
               ? AppSize.mapaNegociacion
               : AppSize.mapaConfirmacion,
-          conRuta: true,
+          origen: datos['origen'] as String?,
+          destino: datos['destino'] as String?,
         ),
         _panelViaje(
           Column(
@@ -1016,11 +1028,11 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
                 _estados[estado] ?? estado,
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
-              const Text('Demostración · Sin conductor ni cobro reales'),
+              const Text('Esta solicitud se guarda en tu cuenta.'),
               if (operando) const LinearProgressIndicator(),
               const SizedBox(height: AppSpacing.spacing12),
               if (estado == 'buscando') ...negociacion(tarifa, autoAceptar),
-              if (demo != null)
+              if (vehiculo != null)
                 Card(
                   child: ListTile(
                     leading: const CircleAvatar(
@@ -1029,10 +1041,9 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
                     title: Text(conductor),
                     subtitle: Text(
                       estado == 'confirmado'
-                          ? 'Llegada estimada: ${demo.minutos} min · ${demo.vehiculo} · ${demo.patente}'
-                          : '${demo.vehiculo} · ${demo.patente}',
+                          ? 'Oferta elegida · $vehiculo'
+                          : 'Vehículo · $vehiculo',
                     ),
-                    isThreeLine: estado == 'confirmado',
                   ),
                 ),
               const SizedBox(height: AppSpacing.spacing8),
@@ -1095,7 +1106,7 @@ class _DetalleViajeScreenState extends State<DetalleViajeScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.chat_bubble_outline),
-                      label: const Text('Chat de demo'),
+                      label: const Text('Notas del viaje'),
                     ),
                 ],
               ),

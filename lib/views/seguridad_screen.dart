@@ -28,7 +28,7 @@ class SeguridadScreen extends StatelessWidget {
               childrenPadding: EdgeInsets.all(AppSpacing.spacing16),
               children: [
                 Text(
-                  'Compara el conductor, el vehículo y la patente antes de subir. Si no coinciden, no inicies el viaje.',
+                  'Antes de subir, comprueba que el vehículo y la patente coincidan con los datos que acordaste.',
                 ),
               ],
             ),
@@ -52,7 +52,7 @@ class SeguridadScreen extends StatelessWidget {
               childrenPadding: EdgeInsets.all(AppSpacing.spacing16),
               children: [
                 Text(
-                  'Mantén la conversación en la app. Evita compartir contraseñas, códigos o datos bancarios.',
+                  'Evita compartir contraseñas, códigos de verificación o datos bancarios.',
                 ),
               ],
             ),
