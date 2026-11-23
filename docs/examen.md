@@ -27,7 +27,7 @@ La propuesta combina un mapa para orientarse y un panel inferior que presenta la
 | Indicador | Dónde mostrarlo |
 |---|---|
 | 1–4. Concepto, referentes, roles y propuesta formal | Enunciado y decisiones de la sección anterior. |
-| 5. Prototipo y comparación | Recorrer el prototipo navegable y reproducir `indrive-video-comparativo.mp4` al final. |
+| 5. Prototipo y comparación | Mostrar las conexiones entre pantallas en la lámina de Figma y recorrer el flujo en el prototipo navegable. |
 | 6. Guía de estilos | Abrir el [tema de Flutter](../lib/theme/theme.dart) y mostrar los tokens de la tabla siguiente. |
 | 7. Componentes y navegación | Buscador, tarjetas de servicio, panel inferior y barra de navegación. Desde Inicio se abre un viaje o Mis direcciones. La barra lleva a Actividad, Mensajes y Perfil. |
 | 8. Cuatro pantallas | Inicio de sesión, Inicio, formulario de dirección y Detalle del viaje. |
@@ -58,7 +58,7 @@ La propuesta combina un mapa para orientarse y un panel inferior que presenta la
 4. **4:00–6:30** Busca una dirección, guárdala, vuelve a abrirla, edítala y elimínala. La lista se actualiza desde Firestore.
 5. **6:30–8:15** Busca el Palacio de La Moneda, revisa el trayecto, guarda una solicitud y abre su detalle desde Actividad. Las ofertas son opciones predefinidas.
 6. **8:15–9:00** Abre la versión web y muestra los datos de la misma cuenta. Comparte el enlace de la app y el del repositorio.
-7. **9:00–10:00** Reproduce el video comparativo de diseño y aplicación.
+7. **9:00–10:00** Muestra en Figma qué interacción conecta cada pantalla y recorre una de esas transiciones en la aplicación.
 
 ## Verificación técnica
 
