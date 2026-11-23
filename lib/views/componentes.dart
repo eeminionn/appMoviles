@@ -1,5 +1,10 @@
+import 'dart:math' as math;
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -29,18 +34,21 @@ class MapaViaje extends StatefulWidget {
 }
 
 class _MapaViajeState extends State<MapaViaje> {
-  final controlador = MapController();
-  final teselas = NetworkTileProvider();
+  gmaps.GoogleMapController? controlador;
+  gmaps.BitmapDescriptor? iconoUdd;
   LatLng? origen;
   LatLng? destino;
   List<LatLng> ruta = const [];
   int consulta = 0;
-  bool mapaListo = false;
   String? estado;
+
+  gmaps.LatLng coordenada(LatLng punto) =>
+      gmaps.LatLng(punto.latitude, punto.longitude);
 
   @override
   void initState() {
     super.initState();
+    prepararPuntoAzul();
     cargarLugares();
   }
 
@@ -59,12 +67,42 @@ class _MapaViajeState extends State<MapaViaje> {
 
   @override
   void dispose() {
-    controlador.dispose();
+    controlador?.dispose();
     super.dispose();
   }
 
-  void centrarEnLaUdd() {
-    if (mapaListo) controlador.move(centroMapa, 15.5);
+  Future<void> prepararPuntoAzul() async {
+    // El punto representa siempre el campus, sin consultar el dispositivo.
+    final dibujo = ui.PictureRecorder();
+    final lienzo = Canvas(dibujo);
+    lienzo.drawCircle(
+      const Offset(36, 36),
+      34,
+      Paint()..color = Colors.black12,
+    );
+    lienzo.drawCircle(
+      const Offset(36, 36),
+      30,
+      Paint()..color = AppColors.blanco,
+    );
+    lienzo.drawCircle(
+      const Offset(36, 36),
+      23,
+      Paint()..color = AppColors.azul,
+    );
+    final grabado = dibujo.endRecording();
+    final imagen = await grabado.toImage(72, 72);
+    grabado.dispose();
+    final bytes = await imagen.toByteData(format: ui.ImageByteFormat.png);
+    imagen.dispose();
+    if (!mounted || bytes == null) return;
+    setState(() {
+      iconoUdd = gmaps.BitmapDescriptor.bytes(
+        bytes.buffer.asUint8List(),
+        width: 24,
+        height: 24,
+      );
+    });
   }
 
   Future<void> cargarLugares() async {
@@ -123,52 +161,56 @@ class _MapaViajeState extends State<MapaViaje> {
   }
 
   void ajustarVista() {
-    if (!mapaListo) return;
+    if (controlador == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) centrarMapa();
     });
+  }
+
+  Future<void> moverCamara(gmaps.CameraUpdate vista) async {
+    final mapa = controlador;
+    if (mapa == null || !mounted) return;
+    try {
+      await mapa.moveCamera(vista);
+    } catch (_) {
+      // Una pantalla cerrada puede terminar de recibir el movimiento pendiente.
+    }
+  }
+
+  void centrarEnLaUdd() {
+    moverCamara(gmaps.CameraUpdate.newLatLngZoom(coordenada(centroMapa), 15.5));
   }
 
   void centrarMapa() {
     final inicio = origen;
     final fin = destino;
     if (inicio != null && fin != null && inicio != fin) {
-      controlador.fitCamera(
-        CameraFit.coordinates(
-          coordinates: [inicio, fin, ...ruta],
-          padding: const EdgeInsets.fromLTRB(38, 35, 38, 62),
-          maxZoom: 17,
+      final puntos = [inicio, fin, ...ruta];
+      final sur = puntos.map((p) => p.latitude).reduce(math.min);
+      final norte = puntos.map((p) => p.latitude).reduce(math.max);
+      final oeste = puntos.map((p) => p.longitude).reduce(math.min);
+      final este = puntos.map((p) => p.longitude).reduce(math.max);
+      moverCamara(
+        gmaps.CameraUpdate.newLatLngBounds(
+          gmaps.LatLngBounds(
+            southwest: gmaps.LatLng(sur, oeste),
+            northeast: gmaps.LatLng(norte, este),
+          ),
+          36,
         ),
       );
     } else {
-      controlador.move(inicio ?? fin ?? centroMapa, 15.5);
+      moverCamara(
+        gmaps.CameraUpdate.newLatLngZoom(
+          coordenada(inicio ?? fin ?? centroMapa),
+          15.5,
+        ),
+      );
     }
   }
 
-  Marker pin(LatLng punto, IconData icono, Color color, String etiqueta) {
-    return Marker(
-      point: punto,
-      alignment: punto == centroMapa ? Alignment.topCenter : null,
-      width: 42,
-      height: 42,
-      child: Tooltip(
-        message: etiqueta,
-        child: CircleAvatar(
-          backgroundColor: AppColors.blanco,
-          child: Icon(icono, color: color),
-        ),
-      ),
-    );
-  }
-
-  Widget enlaceMapa(String titulo, String enlace, {IconData? icono}) {
+  Widget enlaceMapa(String titulo, String enlace) {
     return TextButton(
-      style: TextButton.styleFrom(
-        minimumSize: Size.zero,
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 3),
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        textStyle: Theme.of(context).textTheme.labelSmall,
-      ),
       onPressed: () async {
         final abierto = await launchUrl(
           Uri.parse(enlace),
@@ -180,9 +222,55 @@ class _MapaViajeState extends State<MapaViaje> {
           );
         }
       },
-      child: icono == null
-          ? Text(titulo)
-          : Tooltip(message: titulo, child: Icon(icono, size: 16)),
+      child: Text(titulo),
+    );
+  }
+
+  void informacionMapa() {
+    showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Información del mapa'),
+        scrollable: true,
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Google Maps muestra las calles y los lugares del mapa.',
+            ),
+            TextButton(
+              onPressed: () => showLicensePage(
+                context: dialogContext,
+                applicationName: 'InDrive',
+              ),
+              child: const Text('Licencias de Google Maps'),
+            ),
+            const Text(
+              'Las direcciones y los recorridos consultan datos de OpenStreetMap. '
+              'Las rutas se calculan con OSRM en el servidor de FOSSGIS.',
+            ),
+            enlaceMapa(
+              '© OpenStreetMap',
+              'https://www.openstreetmap.org/copyright',
+            ),
+            enlaceMapa(
+              'OSRM · FOSSGIS',
+              'https://routing.openstreetmap.de/about.html',
+            ),
+            enlaceMapa(
+              'Informar un problema del mapa',
+              'https://www.openstreetmap.org/fixthemap',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: const Text('Cerrar'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -190,90 +278,93 @@ class _MapaViajeState extends State<MapaViaje> {
   Widget build(BuildContext context) {
     final inicio = origen;
     final fin = destino;
+    final icono = iconoUdd;
     final aviso = estado;
+    final recorrido = ruta.map(coordenada).toList();
     return SizedBox(
       height: widget.altura,
       child: Stack(
         fit: StackFit.expand,
         children: [
-          FlutterMap(
-            mapController: controlador,
-            options: MapOptions(
-              initialCenter: centroMapa,
-              initialZoom: 15.5,
-              minZoom: 3,
-              maxZoom: 19,
-              backgroundColor: AppColors.suave,
-              interactionOptions: const InteractionOptions(
-                flags: InteractiveFlag.all & ~InteractiveFlag.rotate,
+          if (icono == null)
+            const Center(child: CircularProgressIndicator())
+          else
+            gmaps.GoogleMap(
+              initialCameraPosition: gmaps.CameraPosition(
+                target: coordenada(centroMapa),
+                zoom: 15.5,
               ),
-              onMapReady: () {
-                mapaListo = true;
+              padding: const EdgeInsets.fromLTRB(12, 12, 12, 68),
+              minMaxZoomPreference: const gmaps.MinMaxZoomPreference(3, 19),
+              myLocationEnabled: false,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              mapToolbarEnabled: false,
+              compassEnabled: false,
+              rotateGesturesEnabled: false,
+              gestureRecognizers: {
+                Factory<OneSequenceGestureRecognizer>(
+                  () => EagerGestureRecognizer(),
+                ),
+              },
+              onMapCreated: (mapa) {
+                if (!mounted) {
+                  mapa.dispose();
+                  return;
+                }
+                controlador = mapa;
                 if (origen != null || destino != null) ajustarVista();
               },
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: const String.fromEnvironment(
-                  'URL_TESELAS',
-                  defaultValue:
-                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+              markers: {
+                gmaps.Marker(
+                  markerId: const gmaps.MarkerId('udd'),
+                  position: coordenada(centroMapa),
+                  icon: icono,
+                  anchor: const Offset(.5, .5),
+                  infoWindow: const gmaps.InfoWindow(
+                    title: 'Universidad del Desarrollo',
+                  ),
                 ),
-                userAgentPackageName: 'com.example.app_moviles',
-                tileProvider: teselas,
-                panBuffer: 0,
-                maxNativeZoom: 19,
-              ),
-              if (ruta.isNotEmpty)
-                PolylineLayer(
-                  polylines: [
-                    Polyline(
-                      points: ruta,
-                      strokeWidth: 5,
-                      color: AppColors.verdeOscuro,
-                      borderStrokeWidth: 2,
-                      borderColor: AppColors.blanco,
+                if (inicio != null)
+                  gmaps.Marker(
+                    markerId: const gmaps.MarkerId('origen'),
+                    position: coordenada(inicio),
+                    icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                      gmaps.BitmapDescriptor.hueGreen,
                     ),
-                  ],
-                ),
-              MarkerLayer(
-                markers: [
-                  if (inicio != null)
-                    pin(
-                      inicio,
-                      Icons.trip_origin,
-                      AppColors.verdeOscuro,
-                      'Origen',
-                    ),
-                  if (fin != null)
-                    pin(
-                      fin,
-                      Icons.place,
-                      AppColors.texto,
-                      widget.origen == null ? 'Dirección' : 'Destino',
-                    ),
-                  Marker(
-                    point: centroMapa,
-                    width: 24,
-                    height: 24,
-                    child: Tooltip(
-                      message: 'Universidad del Desarrollo',
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppColors.azul,
-                          shape: BoxShape.circle,
-                          border: Border.all(color: AppColors.blanco, width: 3),
-                          boxShadow: const [
-                            BoxShadow(color: Colors.black26, blurRadius: 4),
-                          ],
-                        ),
-                      ),
+                    infoWindow: gmaps.InfoWindow(
+                      title: 'Origen',
+                      snippet: widget.origen,
                     ),
                   ),
+                if (fin != null)
+                  gmaps.Marker(
+                    markerId: const gmaps.MarkerId('destino'),
+                    position: coordenada(fin),
+                    infoWindow: gmaps.InfoWindow(
+                      title: 'Destino',
+                      snippet: widget.destino,
+                    ),
+                  ),
+              },
+              polylines: {
+                if (recorrido.isNotEmpty) ...[
+                  gmaps.Polyline(
+                    polylineId: const gmaps.PolylineId('borde-ruta'),
+                    points: recorrido,
+                    color: AppColors.blanco,
+                    width: 8,
+                  ),
+                  gmaps.Polyline(
+                    polylineId: const gmaps.PolylineId('ruta'),
+                    points: recorrido,
+                    color: AppColors.verdeOscuro,
+                    width: 5,
+                    zIndex: 1,
+                  ),
                 ],
-              ),
-            ],
-          ),
+              },
+            ),
           if (widget.abrirMenu != null)
             Positioned(
               top: AppSpacing.spacing12,
@@ -301,33 +392,11 @@ class _MapaViajeState extends State<MapaViaje> {
             ),
           Positioned(
             bottom: AppSpacing.spacing20,
-            left: AppSpacing.spacing8,
-            right: AppSpacing.spacing72,
-            child: Align(
-              alignment: Alignment.bottomLeft,
-              child: Material(
-                color: AppColors.blanco,
-                borderRadius: BorderRadius.circular(AppRadius.boton),
-                child: Wrap(
-                  children: [
-                    enlaceMapa(
-                      '© OpenStreetMap',
-                      'https://www.openstreetmap.org/copyright',
-                    ),
-                    if (ruta.isNotEmpty)
-                      enlaceMapa(
-                        'OSRM · FOSSGIS',
-                        'https://routing.openstreetmap.de/about.html',
-                      ),
-                    if (ruta.isNotEmpty)
-                      enlaceMapa(
-                        'Informar un problema del mapa',
-                        'https://www.openstreetmap.org/fixthemap',
-                        icono: Icons.outlined_flag,
-                      ),
-                  ],
-                ),
-              ),
+            left: AppSpacing.spacing12,
+            child: botonMapa(
+              'Información del mapa',
+              Icons.info_outline,
+              informacionMapa,
             ),
           ),
           if (aviso != null)

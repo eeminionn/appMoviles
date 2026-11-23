@@ -5,12 +5,13 @@ Aplicación para organizar viajes y guardar direcciones, desarrollada para Desar
 - Busca direcciones de Chile para el origen o destino, vuelve a usar tus búsquedas recientes y consulta el recorrido por calles. Puedes buscar, filtrar, calificar y borrar viajes cerrados en Actividad.
 - Guarda domicilio, trabajo u otro lugar. Luego puedes editarlo, eliminarlo o usarlo al elegir un destino.
 - Lee artículos en Soporte y guarda consultas en tu cuenta. También puedes abrir Seguridad, copiar el resumen de un viaje y guardar notas.
+- Al registrarte, guarda nombre, apellido, edad y correo en tu perfil. Puedes consultar y editar tus datos desde Perfil. Las cuentas anteriores y de Google completan sus datos antes de entrar.
 
 Firebase guarda los registros de cada cuenta y actualiza sus búsquedas recientes y pagos frecuentes. Los pagos frecuentes se ordenan por la cantidad de solicitudes guardadas con cada método desde que se habilitó esta función. Las ofertas son opciones predefinidas de la app y el estado del viaje se actualiza manualmente.
 
 ## Mapa y rutas
 
-El mapa se abre en el sector de la Universidad del Desarrollo. `flutter_map` muestra las imágenes del mapa de OpenStreetMap y permite mover y acercar la vista. La vista previa y el detalle marcan el origen y el destino que elegiste y muestran el recorrido en auto. [Atribución de OpenStreetMap](https://www.openstreetmap.org/copyright) · [Política de uso de imágenes del mapa](https://operations.osmfoundation.org/policies/tiles/)
+El mapa usa Google Maps y se abre en el sector de la Universidad del Desarrollo, con un punto azul fijo en el campus. La vista previa y el detalle marcan el origen y el destino que elegiste y muestran el recorrido en auto. En otro equipo, configura una clave propia restringida al paquete Android y su firma en la propiedad local `google.maps.apiKey` de Android o en la variable de entorno `GOOGLE_MAPS_API_KEY`. [Configuración de Google Maps](https://developers.google.com/maps/flutter-package/config)
 
 Al pulsar **Buscar dirección**, InDrive envía el texto a Photon, que consulta datos de OpenStreetMap. La búsqueda también puede recurrir al servicio de direcciones de Android. La disponibilidad y los resultados dependen de la conexión y de la cobertura de los proveedores. [Servicio de búsqueda Photon](https://github.com/komoot/photon#demo-server)
 

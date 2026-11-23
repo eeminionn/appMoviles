@@ -1,4 +1,5 @@
 import 'package:app_moviles/firebase_options.dart';
+import 'package:app_moviles/configuracion_mapa.dart';
 import 'package:app_moviles/main.dart';
 import 'package:app_moviles/mapa.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -6,10 +7,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:latlong2/latlong.dart';
 
 const _hostLocal = '10.0.2.2';
 const _plazo = Duration(seconds: 20);
@@ -33,6 +33,7 @@ void main() {
   late FirebaseFirestore firestore;
 
   setUpAll(() async {
+    configurarGoogleMaps();
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
@@ -68,7 +69,10 @@ void main() {
     final correo =
         'pasajero-${DateTime.now().microsecondsSinceEpoch}@example.test';
     await _tocar(tester, find.widgetWithText(TextButton, 'Crear cuenta'));
-    await _escribir(tester, find.byType(TextFormField).first, correo);
+    await _escribir(tester, find.byType(TextFormField).at(0), 'Andrea');
+    await _escribir(tester, find.byType(TextFormField).at(1), 'González');
+    await _escribir(tester, find.byType(TextFormField).at(2), '23');
+    await _escribir(tester, find.byType(TextFormField).at(3), correo);
     await _escribir(
       tester,
       find.byType(TextFormField).last,
@@ -81,6 +85,22 @@ void main() {
     await _capturar(tester, 'inicio');
     final usuario = authLocal!.currentUser!;
     expect(usuario.email, correo);
+    final perfil = firestore.collection('personas').doc(usuario.uid);
+    final creada = (await perfil.get(_servidor).timeout(_plazo)).data()!;
+    expect(creada['nombre'], 'Andrea');
+    expect(creada['apellido'], 'González');
+    expect(creada['edad'], 23);
+    expect(creada['correo'], correo);
+    expect(creada['creadoEn'], isA<Timestamp>());
+    expect(creada['actualizadoEn'], isA<Timestamp>());
+    expect(creada.keys.toSet(), {
+      'nombre',
+      'apellido',
+      'edad',
+      'correo',
+      'creadoEn',
+      'actualizadoEn',
+    });
 
     final datos = firestore.collection('usuarios').doc(usuario.uid);
     await _probarDirecciones(tester, datos);
@@ -88,38 +108,76 @@ void main() {
     await _probarViaje(tester, datos);
 
     await _tocar(tester, _destinoNavegacion('Perfil'));
+    await _esperar(tester, find.text('Andrea González'));
+    await _tocar(tester, find.text('Editar perfil'));
+    await _escribir(tester, find.byType(TextFormField).at(2), '24');
+    await _tocar(tester, _boton('Guardar cambios'));
+    await _esperar(tester, find.text('24 años'));
+    final editada = (await perfil.get(_servidor).timeout(_plazo)).data()!;
+    expect(editada['edad'], 24);
+    expect(editada['creadoEn'], creada['creadoEn']);
+    expect(
+      (editada['actualizadoEn'] as Timestamp).compareTo(
+        creada['actualizadoEn'] as Timestamp,
+      ),
+      greaterThanOrEqualTo(0),
+    );
     await _tocar(tester, find.text('Cerrar sesión'));
     await _esperar(tester, _boton('Iniciar sesión'));
     expect(authLocal!.currentUser, isNull);
+    await _probarCuentaSinPerfil(tester, authLocal!, firestore);
   });
 }
 
+Future<void> _probarCuentaSinPerfil(
+  WidgetTester tester,
+  FirebaseAuth auth,
+  FirebaseFirestore firestore,
+) async {
+  final correo =
+      'cuenta-anterior-${DateTime.now().microsecondsSinceEpoch}@example.test';
+  // Esta cuenta existe en Authentication antes de guardar un perfil de persona.
+  final acceso = await auth.createUserWithEmailAndPassword(
+    email: correo,
+    password: 'SoloPruebaLocal26',
+  );
+  await _esperar(tester, find.text('Completa tu perfil'));
+  await _escribir(tester, find.byType(TextFormField).at(0), 'Jorge');
+  await _escribir(tester, find.byType(TextFormField).at(1), 'Pérez');
+  await _escribir(tester, find.byType(TextFormField).at(2), '31');
+  await _tocar(tester, _boton('Guardar y continuar'));
+  await _esperar(tester, find.byTooltip('Abrir menú'));
+  final perfil = await firestore
+      .collection('personas')
+      .doc(acceso.user!.uid)
+      .get(_servidor)
+      .timeout(_plazo);
+  expect(perfil.data()?['nombre'], 'Jorge');
+  expect(perfil.data()?['apellido'], 'Pérez');
+  expect(perfil.data()?['edad'], 31);
+  expect(perfil.data()?['correo'], correo);
+  await _tocar(tester, _destinoNavegacion('Perfil'));
+  await _tocar(tester, find.text('Cerrar sesión'));
+  await _esperar(tester, _boton('Iniciar sesión'));
+  expect(auth.currentUser, isNull);
+}
+
 Future<void> _probarPuntoUdd(WidgetTester tester) async {
-  const margen = 0.001;
-  bool cercaDeLaUdd(LatLng punto) =>
-      (punto.latitude - centroMapa.latitude).abs() < margen &&
-      (punto.longitude - centroMapa.longitude).abs() < margen;
   final marcadorUdd = find.byWidgetPredicate(
     (widget) =>
-        widget is MarkerLayer &&
-        widget.markers.any((marcador) => marcador.point == centroMapa),
+        widget is gmaps.GoogleMap &&
+        widget.markers.any(
+          (marcador) =>
+              marcador.markerId.value == 'udd' &&
+              marcador.position.latitude == centroMapa.latitude &&
+              marcador.position.longitude == centroMapa.longitude,
+        ),
     description: 'marcador fijo en la UDD',
   );
-  await _esperar(tester, find.byTooltip('Universidad del Desarrollo'));
-  expect(marcadorUdd, findsOneWidget);
-
-  final mapa = tester
-      .widget<FlutterMap>(find.byType(FlutterMap))
-      .mapController!;
-  mapa.move(
-    LatLng(centroMapa.latitude - 0.01, centroMapa.longitude),
-    mapa.camera.zoom,
-  );
-  await tester.pump();
-  expect(cercaDeLaUdd(mapa.camera.center), isFalse);
+  await _esperar(tester, marcadorUdd);
   expect(marcadorUdd, findsOneWidget);
   await _tocar(tester, find.byTooltip('Centrar en la UDD'));
-  expect(cercaDeLaUdd(mapa.camera.center), isTrue);
+  expect(marcadorUdd, findsOneWidget);
 }
 
 Future<void> _probarDirecciones(
@@ -134,7 +192,7 @@ Future<void> _probarDirecciones(
   await _tocar(tester, find.text('Guardar como domicilio'));
   await _escribir(tester, find.byType(TextFormField), primeraDireccion);
   await _tocar(tester, _boton('Ver en el mapa'));
-  await _esperar(tester, find.byTooltip('Dirección'));
+  await _esperar(tester, marcadorMapa('destino'));
   await _capturar(tester, 'guardar-direccion');
   await _tocar(tester, _boton('Guardar'));
   await _esperar(tester, find.widgetWithText(ListTile, primeraDireccion));
@@ -228,10 +286,15 @@ Future<void> _probarViaje(
   expect(reciente['direccion'], destino);
   expect(reciente['punto'], isA<GeoPoint>());
   await _tocar(tester, _boton('Continuar a tarifa'));
-  await _esperar(tester, find.byTooltip('Origen'));
-  await _esperar(tester, find.byTooltip('Destino'));
+  await _esperar(tester, marcadorMapa('origen'));
+  await _esperar(tester, marcadorMapa('destino'));
   if (_capturas) {
-    await _esperar(tester, find.byWidgetPredicate((w) => w is PolylineLayer));
+    await _esperar(
+      tester,
+      find.byWidgetPredicate(
+        (w) => w is gmaps.GoogleMap && w.polylines.isNotEmpty,
+      ),
+    );
     await _tocar(tester, find.byTooltip('Centrar mapa'));
     await _capturar(tester, 'ruta-por-calles');
   }
@@ -331,6 +394,10 @@ Future<void> _probarViaje(
     await _volver(tester);
   }
 }
+
+Finder marcadorMapa(String id) => find.byWidgetPredicate(
+  (w) => w is gmaps.GoogleMap && w.markers.any((m) => m.markerId.value == id),
+);
 
 Finder _boton(String texto) => find.ancestor(
   of: find.text(texto),

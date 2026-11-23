@@ -1,7 +1,10 @@
 rules_version = '2';
 
 // Modelo de InDrive: todas las subcolecciones pertenecen al UID en la ruta.
-// No se almacena documento padre ni datos de identidad en esta base.
+// personas/{uid}: perfil privado, ligado a la cuenta de Firebase Authentication.
+// nombre/apellido (1–60, sin espacios extremos), edad entera (1–120), correo
+// (1–254, igual al token), creadoEn inmutable y actualizadoEn del servidor.
+// El documento padre de usuarios no se almacena.
 // viajes: origen/destino (2–120), servicio y pago de catálogo, tarifa entera
 // (1000–200000 CLP), autoAceptar (bool), estado de catálogo, conductor de demo
 // (o vacío), calificacion entera (0–5) y creadoEn (timestamp inmutable).
@@ -53,6 +56,21 @@ service cloud.firestore {
 
     function metodoDePagoValido(metodo) {
       return metodo in ['Efectivo', 'Tenpo', 'MACH', 'Banco Santander', 'Mercado Pago', 'PagoRUT'];
+    }
+
+    function personaValida(datos) {
+      return camposExactos(datos, [
+          'nombre', 'apellido', 'edad', 'correo', 'creadoEn', 'actualizadoEn'
+        ])
+        && textoValido(datos.nombre, 1, 60)
+        && datos.nombre == datos.nombre.trim()
+        && textoValido(datos.apellido, 1, 60)
+        && datos.apellido == datos.apellido.trim()
+        && enteroValido(datos.edad, 1, 120)
+        && textoValido(datos.correo, 1, 254)
+        && datos.correo == request.auth.token.email
+        && datos.creadoEn is timestamp
+        && horaDelServidor(datos.actualizadoEn);
     }
 
     function viajeValido(datos) {
@@ -142,6 +160,14 @@ service cloud.firestore {
       return !exists(rutaViaje)
         && existsAfter(rutaViaje)
         && getAfter(rutaViaje).data.pago == metodo;
+    }
+
+    match /personas/{uid} {
+      allow read: if esDueno(uid);
+      allow create: if esDueno(uid) && personaValida(request.resource.data)
+        && creacionDelServidor(request.resource.data);
+      allow update: if esDueno(uid) && personaValida(request.resource.data)
+        && request.resource.data.creadoEn == resource.data.creadoEn;
     }
 
     match /usuarios/{uid}/viajes/{id} {

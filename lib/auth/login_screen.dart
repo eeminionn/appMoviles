@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../personas.dart';
 import '../theme/theme.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -18,6 +20,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
   final correoController = TextEditingController();
   final passwordController = TextEditingController();
+  final nombreController = TextEditingController();
+  final apellidoController = TextEditingController();
+  final edadController = TextEditingController();
   final formKey = GlobalKey<FormState>();
 
   bool cargando = false;
@@ -38,10 +43,25 @@ class _LoginScreenState extends State<LoginScreen> {
       final correo = correoController.text.trim();
       final password = passwordController.text;
       if (registro) {
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: correo,
-          password: password,
+        final nombre = nombreController.text.trim();
+        final apellido = apellidoController.text.trim();
+        final edad = int.parse(edadController.text);
+        borradorRegistro = {
+          'nombre': nombre,
+          'apellido': apellido,
+          'edad': edad,
+          'correo': correo,
+        };
+        registroEnCurso.value = true;
+        final acceso = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: correo, password: password);
+        await guardarPersona(
+          acceso.user!,
+          nombre: nombre,
+          apellido: apellido,
+          edad: edad,
         );
+        borradorRegistro = null;
       } else {
         await FirebaseAuth.instance.signInWithEmailAndPassword(
           email: correo,
@@ -49,6 +69,7 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     } on FirebaseAuthException catch (e) {
+      borradorRegistro = null;
       if (!mounted) return;
       avisar(switch (e.code) {
         'email-already-in-use' => 'Ya hay una cuenta con ese correo.',
@@ -60,7 +81,12 @@ class _LoginScreenState extends State<LoginScreen> {
         'wrong-password' => 'Revisa el correo y la contraseña.',
         _ => 'No se pudo acceder. Intenta nuevamente.',
       });
+    } on FirebaseException {
+      if (mounted) {
+        avisar('Tu cuenta está creada. Completa el perfil para continuar.');
+      }
     } finally {
+      registroEnCurso.value = false;
       if (mounted) setState(() => cargando = false);
     }
   }
@@ -136,6 +162,9 @@ class _LoginScreenState extends State<LoginScreen> {
   void dispose() {
     correoController.dispose();
     passwordController.dispose();
+    nombreController.dispose();
+    apellidoController.dispose();
+    edadController.dispose();
     super.dispose();
   }
 
@@ -174,6 +203,41 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
 
                 const SizedBox(height: AppSpacing.spacing24),
+
+                if (registro) ...[
+                  TextFormField(
+                    controller: nombreController,
+                    enabled: !cargando,
+                    maxLength: 60,
+                    textCapitalization: TextCapitalization.words,
+                    autofillHints: const [AutofillHints.givenName],
+                    decoration: const InputDecoration(labelText: 'Nombre'),
+                    validator: validarNombrePersona,
+                  ),
+                  const SizedBox(height: AppSpacing.spacing8),
+                  TextFormField(
+                    controller: apellidoController,
+                    enabled: !cargando,
+                    maxLength: 60,
+                    textCapitalization: TextCapitalization.words,
+                    autofillHints: const [AutofillHints.familyName],
+                    decoration: const InputDecoration(labelText: 'Apellido'),
+                    validator: validarNombrePersona,
+                  ),
+                  const SizedBox(height: AppSpacing.spacing8),
+                  TextFormField(
+                    controller: edadController,
+                    enabled: !cargando,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    maxLength: 3,
+                    decoration: const InputDecoration(labelText: 'Edad'),
+                    validator: validarEdadPersona,
+                  ),
+                  const SizedBox(height: AppSpacing.spacing16),
+                ],
+
+                // Ingresar con correo
 
                 // Correo electrónico
                 TextFormField(
@@ -227,7 +291,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 const SizedBox(height: AppSpacing.spacing24),
 
-                // Ingresar con correo
                 FilledButton(
                   onPressed: cargando ? null : iniciarSesionCorreo,
                   child: Text(registro ? 'Crear cuenta' : 'Iniciar sesión'),

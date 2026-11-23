@@ -4,10 +4,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../personas.dart';
 import '../theme/theme.dart';
 import 'componentes.dart';
 import 'direcciones_screen.dart';
 import 'mensajes_screen.dart';
+import 'perfil_persona_screen.dart';
 import 'seguridad_screen.dart';
 import 'soporte_screen.dart';
 import 'viajes_screen.dart';
@@ -361,16 +363,51 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget perfil() {
-    final nombre = widget.usuario.displayName ?? 'Mi cuenta';
     return Scaffold(
       appBar: AppBar(title: const Text('Perfil')),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.spacing20),
         children: [
-          ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.person_outline)),
-            title: Text(nombre),
-            subtitle: Text(widget.usuario.email ?? ''),
+          StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            stream: persona(uid).snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return const Text('No pudimos cargar los datos del perfil.');
+              }
+              if (!snapshot.hasData) return const LinearProgressIndicator();
+              final datos = snapshot.data!.data() ?? {};
+              return Column(
+                children: [
+                  ListTile(
+                    leading: const CircleAvatar(
+                      child: Icon(Icons.person_outline),
+                    ),
+                    title: Text(
+                      '${datos['nombre'] ?? ''} ${datos['apellido'] ?? ''}'
+                          .trim(),
+                    ),
+                    subtitle: Text(
+                      datos['correo'] as String? ?? widget.usuario.email ?? '',
+                    ),
+                  ),
+                  if (datos['edad'] is int)
+                    ListTile(
+                      leading: const Icon(Icons.cake_outlined),
+                      title: Text('${datos['edad']} años'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: () => abrir(
+                      PerfilPersonaScreen(
+                        usuario: widget.usuario,
+                        datos: datos,
+                      ),
+                    ),
+                    icon: const Icon(Icons.edit_outlined),
+                    label: const Text('Editar perfil'),
+                  ),
+                ],
+              );
+            },
           ),
           const Divider(),
           opcion(

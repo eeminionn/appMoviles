@@ -34,15 +34,16 @@ async function comprobar(caso, peticion, esperado) {
 
 async function usuario() {
   const url = `http://${authHost}/identitytoolkit.googleapis.com/v1/accounts:signUp?key=local-only`;
+  const email = `reglas-${randomUUID()}@example.test`;
   const respuesta = await pedir(url, 'POST', null, {
-    email: `reglas-${randomUUID()}@example.test`,
+    email,
     password: 'prueba-local-26',
     returnSecureToken: true,
   });
   assert.equal(respuesta.status, 200, 'Auth debe crear un usuario de prueba local.');
   const { idToken, localId } = await respuesta.json();
   assert.ok(idToken && localId, 'Auth debe devolver UID y token local.');
-  return { token: idToken, ruta: `usuarios/${localId}` };
+  return { token: idToken, ruta: `usuarios/${localId}`, uid: localId, email };
 }
 
 function campos(datos) {
@@ -85,6 +86,89 @@ const direccion = { nombre: 'Mi casa', direccion: 'Calle de ejemplo 123', tipo: 
 const consulta = { tema: 'Comunicación', mensaje: 'Es una consulta local de prueba.' };
 const mensaje = { viajeId: 'principal', texto: 'Hola, estoy en la entrada.' };
 const punto = { geoPointValue: { latitude: -33.3916042, longitude: -70.5005107 } };
+
+const rutaPersona = `personas/${ana.uid}`;
+const persona = { nombre: 'Ana María', apellido: 'Pérez', edad: 24, correo: ana.email };
+const horaActualizacion = [{ fieldPath: 'actualizadoEn', setToServerValue: 'REQUEST_TIME' }];
+const altaPersona = (datos, ruta = rutaPersona) => ({
+  ...alta(ruta, datos), updateTransforms: [...horaServidor, ...horaActualizacion],
+});
+const cambioPersona = (datos, eliminados = []) => ({
+  ...cambio(rutaPersona, datos, [...Object.keys(datos), ...eliminados]),
+  updateTransforms: horaActualizacion,
+});
+
+await denegado('Perfil sin sesión', escribir(null, altaPersona(persona)));
+await denegado('Crea un perfil bajo otro UID', escribir(bea, altaPersona({ ...persona, correo: bea.email })));
+for (const [caso, datos] of [
+  ['Nombre vacío', { ...persona, nombre: '' }],
+  ['Nombre con espacios extremos', { ...persona, nombre: ' Ana ' }],
+  ['Apellido solo espacios', { ...persona, apellido: '  ' }],
+  ['Nombre excesivo', { ...persona, nombre: 'a'.repeat(61) }],
+  ['Apellido excesivo', { ...persona, apellido: 'a'.repeat(61) }],
+  ['Nombre de tipo incorrecto', { ...persona, nombre: 15 }],
+  ['Apellido de tipo incorrecto', { ...persona, apellido: true }],
+  ['Edad de tipo texto', { ...persona, edad: '24' }],
+  ['Edad decimal', { ...persona, edad: 24.5 }],
+  ['Edad demasiado baja', { ...persona, edad: 0 }],
+  ['Edad demasiado alta', { ...persona, edad: 121 }],
+  ['Correo distinto del token', { ...persona, correo: bea.email }],
+  ['Correo de tipo incorrecto', { ...persona, correo: 5 }],
+  ['Correo excesivo', { ...persona, correo: `${'a'.repeat(250)}@test.cl` }],
+  ['Contraseña fuera del esquema', { ...persona, password: 'secreto' }],
+  ['Rol fuera del esquema', { ...persona, rol: 'admin' }],
+]) {
+  await denegado(caso, escribir(ana, altaPersona(datos)));
+}
+for (const campo of Object.keys(persona)) {
+  const datos = { ...persona };
+  delete datos[campo];
+  await denegado(`Falta ${campo} en el perfil`, escribir(ana, altaPersona(datos)));
+}
+await denegado('Perfil sin fecha de creación', escribir(ana, {
+  ...guardar(rutaPersona, persona), updateTransforms: horaActualizacion,
+}));
+await denegado('Perfil sin fecha de actualización', escribir(ana, alta(rutaPersona, persona)));
+await denegado('Perfil con fechas elegidas por el cliente', escribir(ana, guardar(rutaPersona, {
+  ...persona, creadoEn: { timestampValue: '2000-01-01T00:00:00Z' },
+  actualizadoEn: { timestampValue: '2000-01-01T00:00:00Z' },
+})));
+await listo('Crea su perfil con fechas del servidor', escribir(ana, altaPersona(persona)));
+const perfilInicial = await (await listo('Lee su propio perfil', leer(ana, rutaPersona))).json();
+await denegado('Perfil leído sin sesión', leer(null, rutaPersona));
+await denegado('Perfil leído por otra cuenta', leer(bea, rutaPersona));
+await denegado('Lista pública de perfiles', leer(null, 'personas'));
+await denegado('Lista de perfiles desde otra cuenta', leer(bea, 'personas'));
+await denegado('Edita el perfil de otra persona', escribir(bea, cambioPersona({ nombre: 'Intrusa' })));
+await listo('Edita nombre, apellido y edad del perfil propio', escribir(ana, cambioPersona({
+  nombre: 'Ana', apellido: 'Pérez Soto', edad: 25,
+})));
+const perfilEditado = await (await leer(ana, rutaPersona)).json();
+assert.deepEqual(perfilEditado.fields.creadoEn, perfilInicial.fields.creadoEn);
+assert.equal(perfilEditado.fields.edad.integerValue, '25');
+for (const [caso, datos] of [
+  ['Edita nombre vacío', { nombre: '' }],
+  ['Edita apellido excesivo', { apellido: 'x'.repeat(61) }],
+  ['Edita edad negativa', { edad: -1 }],
+  ['Edita edad decimal', { edad: 25.5 }],
+  ['Edita correo ajeno', { correo: bea.email }],
+  ['Agrega contraseña al editar perfil', { password: 'secreto' }],
+  ['Agrega rol al editar perfil', { rol: 'admin' }],
+  ['Altera fecha de creación del perfil', { creadoEn: { timestampValue: '2001-01-01T00:00:00Z' } }],
+]) {
+  await denegado(caso, escribir(ana, cambioPersona(datos)));
+}
+for (const campo of [...Object.keys(persona), 'creadoEn']) {
+  await denegado(`Quita ${campo} del perfil`, escribir(ana, cambioPersona({}, [campo])));
+}
+await denegado('Quita la fecha de actualización del perfil', escribir(ana, cambio(rutaPersona, {}, ['actualizadoEn'])));
+await denegado('Edita el perfil sin actualizar la fecha', escribir(ana, cambio(rutaPersona, { edad: 26 })));
+await denegado('Fecha de actualización del perfil escrita por cliente', escribir(ana, cambio(rutaPersona, {
+  actualizadoEn: { timestampValue: '2000-01-01T00:00:00Z' },
+})));
+await denegado('Fecha de actualización de tipo incorrecto', escribir(ana, cambio(rutaPersona, { actualizadoEn: 'hoy' })));
+await denegado('Borra su perfil desde el cliente', escribir(ana, baja(rutaPersona)));
+await denegado('Borra el perfil ajeno', escribir(bea, baja(rutaPersona)));
 
 await listo('Ana crea un viaje', escribir(ana, alta(rutaViaje, viaje)));
 await listo('Bea crea su propio viaje', escribir(bea, alta(rutaViajeBea, viaje)));

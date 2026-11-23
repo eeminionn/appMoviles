@@ -19,7 +19,7 @@ Abre el [sistema de diseño original](https://www.figma.com/design/NYWjQGbz2z6YS
 
 1. **0:00–0:30.** Presenta InDrive como una aplicación para organizar viajes y guardar direcciones.
 2. **0:30–2:10.** Muestra en Figma Inter, la paleta y los componentes. Abre los tres puntos de inicio.
-3. **2:10–3:00.** En Android, abre InDrive e inicia sesión. Muestra el punto azul fijo de la Universidad del Desarrollo. Mueve el mapa y pulsa **Centrar en la UDD** para volver al campus. Muestra el menú y las pestañas.
+3. **2:10–3:00.** En Android, abre InDrive e inicia sesión. Muestra los datos de la cuenta en Perfil y el mapa de Google con el punto azul fijo de la Universidad del Desarrollo. Mueve el mapa y pulsa **Centrar en la UDD** para volver al campus. Muestra el menú y las pestañas.
 4. **3:00–5:30.** Busca «Palacio de La Moneda, Santiago» y elige un resultado para mostrar el destino y la ruta. Guarda un viaje con un método de pago. Al iniciar otra solicitud, muestra **Búsquedas recientes** y **Pagos frecuentes** para enseñar cómo se actualizan los datos de la cuenta.
 5. **5:30–6:55.** Guarda una dirección, edítala, vuelve a verla y úsala al buscar destino. Muestra el borrado con confirmación.
 6. **6:55–8:00.** Abre Comunicación desde Soporte y registra una consulta. Señala Mensajes y Seguridad.
@@ -30,8 +30,8 @@ Las ofertas son opciones predefinidas de la app. El estado y el medio de pago qu
 ## Validación realizada
 
 - Análisis de Flutter sin observaciones y pruebas del formulario de inicio de sesión aprobadas.
-- Comprobación en Android de las calles, los marcadores de origen y destino y el recorrido entre la Universidad del Desarrollo y Metro Salvador.
-- Compilación e instalación de la app Android. La prueba de extremo a extremo en el emulador cubre registro, edición y borrado de direcciones, consultas, ofertas, cambios de estado del viaje, calificación, notas, filtros y cierre de sesión.
-- La validación de Firebase usa datos ficticios y servidores locales. Las reglas también pasaron 62 comprobaciones y se publicaron en el proyecto **indrive26**, donde el profesor ya tiene acceso.
+- Comprobación en Android del mapa de Google, las calles y el punto azul fijo de la Universidad del Desarrollo. La prueba también revisa los marcadores de origen y destino y el recorrido.
+- Compilación e instalación de la app Android. La prueba de extremo a extremo en el emulador cubre registro y edición de los datos de la persona, completar una cuenta anterior, edición y borrado de direcciones, búsquedas recientes, pagos frecuentes, consultas, ofertas, cambios de estado del viaje, calificación, notas, filtros y cierre de sesión.
+- La validación de Firebase usa datos ficticios y servidores locales. Las reglas también pasaron 147 comprobaciones y se publicaron en el proyecto **indrive26**, donde el profesor ya tiene acceso. Los perfiles se guardan en `personas/{uid}` y cada cuenta solo puede consultar y modificar el suyo.
 
 La entrega se registra como **URL web** en [ENTREGA CERTAMEN 2 de Canvas UDD](https://udd.instructure.com/courses/78364/assignments/555975).
