@@ -4,7 +4,7 @@ InDrive permite organizar una solicitud de viaje desde una sola pantalla de inic
 
 - [Código en GitHub](https://github.com/eeminionn/appMoviles)
 - [Versión web en GitHub Pages](https://eeminionn.github.io/appMoviles/)
-- [Versión web en Firebase Hosting](https://app-flutter-20261019-4d8a.web.app/)
+- [Versión web en Firebase Hosting](https://indrive26.web.app/)
 - [Diseño de referencia en Figma](https://www.figma.com/design/NYWjQGbz2z6YSUq3c5zHBV/DesignSystem-InDrive--Copy-?node-id=286-14332)
 - [Prototipo navegable en Figma](https://www.figma.com/design/rRx9CyU5mhLMszKSztUFmL/DesignSystem-InDrive--Copy---Copia-?node-id=4002-6948)
 

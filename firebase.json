@@ -23,6 +23,7 @@
     "rules": "firestore.rules"
   },
   "hosting": {
+    "site": "indrive26",
     "public": "build/web",
     "ignore": [
       "firebase.json",
