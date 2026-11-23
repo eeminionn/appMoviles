@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart' as gmaps;
 import 'package:latlong2/latlong.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../mapa.dart';
@@ -78,7 +79,7 @@ class _MapaViajeState extends State<MapaViaje> {
     lienzo.drawCircle(
       const Offset(36, 36),
       34,
-      Paint()..color = Colors.black12,
+      Paint()..color = AppColors.sombraMarcador,
     );
     lienzo.drawCircle(
       const Offset(36, 36),
@@ -99,8 +100,8 @@ class _MapaViajeState extends State<MapaViaje> {
     setState(() {
       iconoUdd = gmaps.BitmapDescriptor.bytes(
         bytes.buffer.asUint8List(),
-        width: 24,
-        height: 24,
+        width: AppSize.icono,
+        height: AppSize.icono,
       );
     });
   }
@@ -196,7 +197,7 @@ class _MapaViajeState extends State<MapaViaje> {
             southwest: gmaps.LatLng(sur, oeste),
             northeast: gmaps.LatLng(norte, este),
           ),
-          36,
+          AppSpacing.spacing32,
         ),
       );
     } else {
@@ -229,47 +230,50 @@ class _MapaViajeState extends State<MapaViaje> {
   void informacionMapa() {
     showDialog<void>(
       context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Información del mapa'),
-        scrollable: true,
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Google Maps muestra las calles y los lugares del mapa.',
-            ),
-            TextButton(
-              onPressed: () => showLicensePage(
-                context: dialogContext,
-                applicationName: 'InDrive',
+      builder: (dialogContext) => PointerInterceptor(
+        intercepting: kIsWeb,
+        child: AlertDialog(
+          title: const Text('Información del mapa'),
+          scrollable: true,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Google Maps muestra las calles y los lugares del mapa.',
               ),
-              child: const Text('Licencias de Google Maps'),
-            ),
-            const Text(
-              'Las direcciones y los recorridos consultan datos de OpenStreetMap. '
-              'Las rutas se calculan con OSRM en el servidor de FOSSGIS.',
-            ),
-            enlaceMapa(
-              '© OpenStreetMap',
-              'https://www.openstreetmap.org/copyright',
-            ),
-            enlaceMapa(
-              'OSRM · FOSSGIS',
-              'https://routing.openstreetmap.de/about.html',
-            ),
-            enlaceMapa(
-              'Informar un problema del mapa',
-              'https://www.openstreetmap.org/fixthemap',
+              TextButton(
+                onPressed: () => showLicensePage(
+                  context: dialogContext,
+                  applicationName: 'InDrive',
+                ),
+                child: const Text('Licencias de Google Maps'),
+              ),
+              const Text(
+                'Las direcciones y los recorridos consultan datos de OpenStreetMap. '
+                'Las rutas se calculan con OSRM en el servidor de FOSSGIS.',
+              ),
+              enlaceMapa(
+                '© OpenStreetMap',
+                'https://www.openstreetmap.org/copyright',
+              ),
+              enlaceMapa(
+                'OSRM · FOSSGIS',
+                'https://routing.openstreetmap.de/about.html',
+              ),
+              enlaceMapa(
+                'Informar un problema del mapa',
+                'https://www.openstreetmap.org/fixthemap',
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cerrar'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: const Text('Cerrar'),
-          ),
-        ],
       ),
     );
   }
@@ -294,7 +298,12 @@ class _MapaViajeState extends State<MapaViaje> {
                 target: coordenada(centroMapa),
                 zoom: 15.5,
               ),
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 68),
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.spacing12,
+                AppSpacing.spacing12,
+                AppSpacing.spacing12,
+                AppSpacing.spacing72,
+              ),
               minMaxZoomPreference: const gmaps.MinMaxZoomPreference(3, 19),
               myLocationEnabled: false,
               myLocationButtonEnabled: false,
@@ -302,6 +311,7 @@ class _MapaViajeState extends State<MapaViaje> {
               mapToolbarEnabled: false,
               compassEnabled: false,
               rotateGesturesEnabled: false,
+              webGestureHandling: gmaps.WebGestureHandling.cooperative,
               gestureRecognizers: {
                 Factory<OneSequenceGestureRecognizer>(
                   () => EagerGestureRecognizer(),
@@ -329,9 +339,11 @@ class _MapaViajeState extends State<MapaViaje> {
                   gmaps.Marker(
                     markerId: const gmaps.MarkerId('origen'),
                     position: coordenada(inicio),
-                    icon: gmaps.BitmapDescriptor.defaultMarkerWithHue(
-                      gmaps.BitmapDescriptor.hueGreen,
-                    ),
+                    icon: kIsWeb
+                        ? gmaps.BitmapDescriptor.defaultMarker
+                        : gmaps.BitmapDescriptor.defaultMarkerWithHue(
+                            gmaps.BitmapDescriptor.hueGreen,
+                          ),
                     infoWindow: gmaps.InfoWindow(
                       title: 'Origen',
                       snippet: widget.origen,
@@ -370,6 +382,26 @@ class _MapaViajeState extends State<MapaViaje> {
               top: AppSpacing.spacing12,
               left: AppSpacing.spacing12,
               child: botonMapa('Abrir menú', Icons.menu, widget.abrirMenu!),
+            ),
+          if (kIsWeb && icono != null)
+            Positioned(
+              top: AppSpacing.spacing12,
+              right: AppSpacing.spacing12,
+              child: Column(
+                children: [
+                  botonMapa(
+                    'Acercar mapa',
+                    Icons.add,
+                    () => moverCamara(gmaps.CameraUpdate.zoomIn()),
+                  ),
+                  const SizedBox(height: AppSpacing.spacing8),
+                  botonMapa(
+                    'Alejar mapa',
+                    Icons.remove,
+                    () => moverCamara(gmaps.CameraUpdate.zoomOut()),
+                  ),
+                ],
+              ),
             ),
           Positioned(
             bottom: AppSpacing.spacing20,
@@ -425,14 +457,17 @@ class _MapaViajeState extends State<MapaViaje> {
   }
 
   Widget botonMapa(String nombre, IconData icono, VoidCallback tocar) {
-    return Material(
-      color: AppColors.blanco,
-      elevation: AppSize.elevacionMapa,
-      shape: const CircleBorder(),
-      child: IconButton(
-        tooltip: nombre,
-        icon: Icon(icono, color: AppColors.verdeOscuro),
-        onPressed: tocar,
+    return PointerInterceptor(
+      intercepting: kIsWeb,
+      child: Material(
+        color: AppColors.blanco,
+        elevation: AppSize.elevacionMapa,
+        shape: const CircleBorder(),
+        child: IconButton(
+          tooltip: nombre,
+          icon: Icon(icono, color: AppColors.verdeOscuro),
+          onPressed: tocar,
+        ),
       ),
     );
   }

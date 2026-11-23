@@ -16,6 +16,7 @@ class AppColors {
   static const blanco = Color(0xFFFFFFFF);
   static const error = Color(0xFFD41515);
   static const sombra = Color(0x14111827);
+  static const sombraMarcador = Color(0x1F000000);
 }
 
 class AppSpacing {
@@ -44,6 +45,7 @@ class AppRadius {
 
 class AppSize {
   static const anchoReferencia = 360.0;
+  static const anchoFormulario = 480.0;
   static const mapaInicio = 305.0;
   static const mapaTarifa = 476.0;
   static const mapaNegociacion = 293.0;
@@ -51,19 +53,86 @@ class AppSize {
   static const tarjeta = 156.0;
   static const barra = 64.0;
   static const icono = 24.0;
+  static const iconoServicio = 40.0;
   static const boton = 44.0;
   static const guia = 45.0;
   static const grosorGuia = 3.0;
+  static const elevacionPlana = 0.0;
+  static const elevacionTarjeta = 2.0;
   static const elevacionMapa = 2.0;
   static const elevacionHoja = 3.0;
   static const anchoMenu = .84;
   static const proporcionMapa = .44;
 }
 
+class AppTypography {
+  static const familia = 'Inter';
+  static const escala = TextTheme(
+    headlineLarge: TextStyle(
+      fontSize: 34,
+      fontWeight: FontWeight.w700,
+      letterSpacing: .5,
+    ),
+    headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
+    headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w400),
+    titleLarge: TextStyle(
+      fontSize: 20,
+      fontWeight: FontWeight.w500,
+      letterSpacing: .15,
+    ),
+    titleMedium: TextStyle(
+      fontSize: 18,
+      fontWeight: FontWeight.w400,
+      letterSpacing: .15,
+    ),
+    titleSmall: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      letterSpacing: .1,
+    ),
+    bodyLarge: TextStyle(
+      fontSize: 16,
+      fontWeight: FontWeight.w400,
+      letterSpacing: 1.5,
+    ),
+    bodyMedium: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w400,
+      letterSpacing: .25,
+    ),
+    bodySmall: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w400,
+      letterSpacing: .4,
+    ),
+    labelLarge: TextStyle(
+      fontSize: 14,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 1.25,
+    ),
+    labelMedium: TextStyle(
+      fontSize: 12,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 1.25,
+    ),
+    labelSmall: TextStyle(
+      fontSize: 10,
+      fontWeight: FontWeight.w500,
+      letterSpacing: 1.5,
+    ),
+  );
+
+  static const navegacion = TextStyle(
+    fontFamily: familia,
+    fontSize: 12,
+    letterSpacing: .4,
+  );
+}
+
 class AppTheme {
   // Aquí van los estilos del Figma.
   static final tema = ThemeData(
-    fontFamily: 'Inter',
+    fontFamily: AppTypography.familia,
     colorScheme: const ColorScheme.light(
       primary: AppColors.verdeAccion,
       onPrimary: AppColors.blanco,
@@ -80,63 +149,10 @@ class AppTheme {
       shadow: AppColors.texto,
     ),
     scaffoldBackgroundColor: AppColors.blanco,
-    textTheme: const TextTheme(
-      headlineLarge: TextStyle(
-        fontSize: 34,
-        fontWeight: FontWeight.w700,
-        letterSpacing: .5,
-      ),
-      headlineMedium: TextStyle(fontSize: 24, fontWeight: FontWeight.w700),
-      headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w400),
-      titleLarge: TextStyle(
-        fontSize: 20,
-        fontWeight: FontWeight.w500,
-        letterSpacing: .15,
-      ),
-      titleMedium: TextStyle(
-        fontSize: 18,
-        fontWeight: FontWeight.w400,
-        letterSpacing: .15,
-      ),
-      titleSmall: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        letterSpacing: .1,
-      ),
-      bodyLarge: TextStyle(
-        fontSize: 16,
-        fontWeight: FontWeight.w400,
-        letterSpacing: 1.5,
-      ),
-      bodyMedium: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w400,
-        letterSpacing: .25,
-      ),
-      bodySmall: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w400,
-        letterSpacing: .4,
-      ),
-      labelLarge: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 1.25,
-      ),
-      labelMedium: TextStyle(
-        fontSize: 12,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 1.25,
-      ),
-      labelSmall: TextStyle(
-        fontSize: 10,
-        fontWeight: FontWeight.w500,
-        letterSpacing: 1.5,
-      ),
-    ),
+    textTheme: AppTypography.escala,
     appBarTheme: const AppBarTheme(
-      elevation: 0,
-      scrolledUnderElevation: 0,
+      elevation: AppSize.elevacionPlana,
+      scrolledUnderElevation: AppSize.elevacionPlana,
       backgroundColor: AppColors.blanco,
       foregroundColor: AppColors.texto,
     ),
@@ -178,7 +194,7 @@ class AppTheme {
       color: AppColors.blanco,
       surfaceTintColor: AppColors.blanco,
       shadowColor: AppColors.sombra,
-      elevation: 2,
+      elevation: AppSize.elevacionTarjeta,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.tarjeta),
       ),
@@ -193,12 +209,10 @@ class AppTheme {
     ),
     navigationBarTheme: const NavigationBarThemeData(
       height: AppSize.barra,
-      elevation: 0,
+      elevation: AppSize.elevacionPlana,
       backgroundColor: AppColors.blanco,
       indicatorColor: AppColors.seleccion,
-      labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(fontFamily: 'Inter', fontSize: 12, letterSpacing: .4),
-      ),
+      labelTextStyle: WidgetStatePropertyAll(AppTypography.navegacion),
     ),
     dividerTheme: const DividerThemeData(color: AppColors.borde),
   );

@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:http/http.dart' as http;
 import 'package:latlong2/latlong.dart';
 
 import 'datos.dart';
+import 'photon.dart';
 
 // Campus Rector Ernesto Silva Bafalluy, Av. Plaza 680, Las Condes.
 // https://www.openstreetmap.org/way/308307124
@@ -47,7 +49,10 @@ void _guardar<K, V>(Map<K, V> cache, K clave, V valor) {
   cache[clave] = valor;
 }
 
-Future<LatLng?> buscarPunto(String direccion) async {
+Future<LatLng?> buscarPunto(
+  String direccion, {
+  bool usarPhotonEnWeb = true,
+}) async {
   final clave = _claveDireccion(direccion);
   if (clave.isEmpty) return null;
   if (_aliasCampus.contains(clave)) return centroMapa;
@@ -67,7 +72,9 @@ Future<LatLng?> buscarPunto(String direccion) async {
     }
   }
 
-  if (GeocodingPlatformFactory.instance == null) return null;
+  if (kIsWeb ? !usarPhotonEnWeb : GeocodingPlatformFactory.instance == null) {
+    return null;
+  }
 
   return _puntosEnCurso[clave] ??= _buscarDireccion(direccion)
       .timeout(_tiempoEspera)
@@ -87,17 +94,23 @@ Future<LatLng?> buscarPunto(String direccion) async {
 }
 
 Future<LatLng?> _buscarDireccion(String direccion) async {
+  final partes = direccion.split(',');
+  // Las direcciones guardadas pueden empezar por una etiqueta como «Casa».
+  if (partes.length > 1 &&
+      !partes.first.contains(RegExp(r'\d')) &&
+      partes[1].contains(RegExp(r'\d'))) {
+    partes.removeAt(0);
+  }
+  final direccionSinEtiqueta = partes.join(',').trim();
+
+  if (kIsWeb) {
+    final resultados = await buscarEnPhoton(direccionSinEtiqueta, centroMapa);
+    return resultados.firstOrNull?.punto;
+  }
+
   final geocoder = Geocoding(locale: const Locale('es', 'CL'));
   if (!await geocoder.isPresent()) return null;
 
-  final partes = direccion.split(',');
-  // Las direcciones guardadas pueden empezar por una etiqueta como «Casa».
-  final indiceCalle =
-      partes.length > 1 &&
-          !partes.first.contains(RegExp(r'\d')) &&
-          partes[1].contains(RegExp(r'\d'))
-      ? 1
-      : 0;
   const palabrasGenericas = {
     'avenida',
     'av',
@@ -111,7 +124,7 @@ Future<LatLng?> _buscarDireccion(String direccion) async {
     'las',
     'el',
   };
-  final palabras = _claveDireccion(partes[indiceCalle])
+  final palabras = _claveDireccion(partes.first)
       .split(' ')
       .where(
         (palabra) => palabra.isNotEmpty && !palabrasGenericas.contains(palabra),
@@ -119,7 +132,6 @@ Future<LatLng?> _buscarDireccion(String direccion) async {
       .toList();
   if (palabras.isEmpty) return null;
 
-  final direccionSinEtiqueta = partes.skip(indiceCalle).join(',').trim();
   final consulta =
       RegExp(r'\bchile\b').hasMatch(_claveDireccion(direccionSinEtiqueta))
       ? direccionSinEtiqueta
@@ -198,8 +210,9 @@ Future<List<LatLng>> _descargarRuta(LatLng origen, LatLng destino) async {
         .get(
           url,
           headers: {
-            'User-Agent':
-                'InDrive/0.1 (+https://github.com/eeminionn/appMoviles)',
+            if (!kIsWeb)
+              'User-Agent':
+                  'InDrive/0.1 (+https://github.com/eeminionn/appMoviles)',
           },
         )
         .timeout(_tiempoEspera);

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="InDrive, aplicación para organizar viajes y guardar direcciones.">
+  <meta name="theme-color" content="#0a7a2e">
+  <title>InDrive</title>
+  <link rel="icon" href="assets/assets/imagenes/logo.png" type="image/png">
+  <style>
+    body {
+      margin: 0;
+      background: #fff;
+      color: #111827;
+      font: 1rem system-ui, sans-serif;
+    }
+
+    #carga {
+      display: grid;
+      min-height: 100dvh;
+      place-content: center;
+      justify-items: center;
+      padding-inline: 1rem;
+      text-align: center;
+    }
+
+    #carga img { width: 80px; height: 80px; }
+  </style>
+  <script defer src="https://maps.googleapis.com/maps/api/js?key={{GOOGLE_MAPS_API_KEY_WEB}}&amp;language=es&amp;region=CL"></script>
+  <script>
+    window.addEventListener('flutter-first-frame', () => {
+      document.getElementById('carga')?.remove();
+    }, {once: true});
+  </script>
+</head>
+<body>
+  <div id="carga" role="status">
+    <img src="assets/assets/imagenes/logo.png" alt="">
+    <p>Cargando InDrive…</p>
+    <noscript>Activa JavaScript para abrir InDrive.</noscript>
+  </div>
+  <script src="flutter_bootstrap.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+name: Publicar InDrive en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  compilar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener código
+        uses: actions/checkout@v6
+
+      - name: Leer configuración de Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Instalar Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: '3.44.9'
+          cache: true
+
+      - name: Configurar Firebase Web
+        env:
+          FIREBASE_OPTIONS_DART: ${{ secrets.FIREBASE_OPTIONS_DART }}
+        run: |
+          test -n "$FIREBASE_OPTIONS_DART"
+          printf '%s\n' "$FIREBASE_OPTIONS_DART" > lib/firebase_options.dart
+
+      - name: Compilar la app web
+        env:
+          BASE_PATH: ${{ steps.pages.outputs.base_path }}
+          GOOGLE_MAPS_API_KEY_WEB: ${{ secrets.GOOGLE_MAPS_API_KEY_WEB }}
+        run: |
+          test -n "$GOOGLE_MAPS_API_KEY_WEB"
+          flutter pub get --enforce-lockfile
+          flutter build web --release --no-pub --no-web-resources-cdn \
+            --base-href "${BASE_PATH%/}/" \
+            --web-define "GOOGLE_MAPS_API_KEY_WEB=$GOOGLE_MAPS_API_KEY_WEB"
+
+      - name: Preparar archivos públicos
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: build/web
+
+  publicar:
+    needs: compilar
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.publicacion.outputs.page_url }}
+    steps:
+      - name: Publicar en GitHub Pages
+        id: publicacion
+        uses: actions/deploy-pages@v4

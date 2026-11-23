@@ -12,7 +12,8 @@
         "lib/firebase_options.dart": {
           "projectId": "app-flutter-20261019-4d8a",
           "configurations": {
-            "android": "1:1098913392397:android:e9b02dad98319af9877244"
+            "android": "1:1098913392397:android:e9b02dad98319af9877244",
+            "web": "1:1098913392397:web:37ff19f7d44824a5877244"
           }
         }
       }
@@ -20,5 +21,24 @@
   },
   "firestore": {
     "rules": "firestore.rules"
+  },
+  "hosting": {
+    "public": "build/web",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "headers": [
+      {
+        "source": "**/*.@(html|js)",
+        "headers": [
+          {
+            "key": "Cache-Control",
+            "value": "no-cache"
+          }
+        ]
+      }
+    ]
   }
 }

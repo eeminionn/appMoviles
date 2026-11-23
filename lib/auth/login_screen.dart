@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/services.dart';
@@ -118,6 +119,10 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => cargando = true);
 
     try {
+      if (kIsWeb) {
+        await FirebaseAuth.instance.signInWithPopup(GoogleAuthProvider());
+        return;
+      }
       await inicializacionGoogle;
 
       final googleUser = await GoogleSignIn.instance.authenticate();
@@ -140,9 +145,16 @@ class _LoginScreenState extends State<LoginScreen> {
     } on FirebaseAuthException catch (e) {
       if (!mounted) return;
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text('Error de Firebase: ${e.code}')));
+      if (e.code == 'popup-closed-by-user' ||
+          e.code == 'cancelled-popup-request') {
+        return;
+      }
+      avisar(switch (e.code) {
+        'popup-blocked' =>
+          'Permite las ventanas emergentes para entrar con Google.',
+        'network-request-failed' => 'Revisa tu conexión e intenta de nuevo.',
+        _ => 'No se pudo iniciar sesión con Google. Intenta nuevamente.',
+      });
     } catch (_) {
       if (!mounted) return;
 
@@ -177,151 +189,158 @@ class _LoginScreenState extends State<LoginScreen> {
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.spacing24),
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: Image.asset(
-                    'assets/imagenes/logo.png',
-                    width: AppSpacing.spacing64,
-                    height: AppSpacing.spacing64,
-                    semanticLabel: 'InDrive',
-                  ),
-                ),
-                const SizedBox(height: AppSpacing.spacing16),
-                Text(
-                  registro ? 'Crea tu cuenta' : 'Bienvenido',
-                  style: textos.headlineLarge,
-                ),
-                const SizedBox(height: AppSpacing.spacing8),
-                const Text(
-                  'Organiza tus viajes y guarda tus lugares favoritos.',
-                ),
-
-                const SizedBox(height: AppSpacing.spacing24),
-
-                if (registro) ...[
-                  TextFormField(
-                    controller: nombreController,
-                    enabled: !cargando,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.words,
-                    autofillHints: const [AutofillHints.givenName],
-                    decoration: const InputDecoration(labelText: 'Nombre'),
-                    validator: validarNombrePersona,
-                  ),
-                  const SizedBox(height: AppSpacing.spacing8),
-                  TextFormField(
-                    controller: apellidoController,
-                    enabled: !cargando,
-                    maxLength: 60,
-                    textCapitalization: TextCapitalization.words,
-                    autofillHints: const [AutofillHints.familyName],
-                    decoration: const InputDecoration(labelText: 'Apellido'),
-                    validator: validarNombrePersona,
-                  ),
-                  const SizedBox(height: AppSpacing.spacing8),
-                  TextFormField(
-                    controller: edadController,
-                    enabled: !cargando,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    maxLength: 3,
-                    decoration: const InputDecoration(labelText: 'Edad'),
-                    validator: validarEdadPersona,
-                  ),
-                  const SizedBox(height: AppSpacing.spacing16),
-                ],
-
-                // Ingresar con correo
-
-                // Correo electrónico
-                TextFormField(
-                  controller: correoController,
-                  keyboardType: TextInputType.emailAddress,
-                  decoration: const InputDecoration(
-                    labelText: 'Correo electrónico',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
-                  validator: (valor) {
-                    if (valor == null || valor.trim().isEmpty) {
-                      return 'Ingresa tu correo electrónico';
-                    }
-                    if (!valor.contains('@')) return 'Escribe un correo válido';
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: AppSpacing.spacing16),
-
-                // Contraseña
-                TextFormField(
-                  controller: passwordController,
-                  obscureText: !mostrarPassword,
-                  decoration: InputDecoration(
-                    labelText: 'Contraseña',
-                    prefixIcon: const Icon(Icons.lock_outline),
-                    suffixIcon: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          mostrarPassword = !mostrarPassword;
-                        });
-                      },
-                      icon: Icon(
-                        mostrarPassword
-                            ? Icons.visibility_off
-                            : Icons.visibility,
-                      ),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(
+              maxWidth: AppSize.anchoFormulario,
+            ),
+            child: Form(
+              key: formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Image.asset(
+                      'assets/imagenes/logo.png',
+                      width: AppSpacing.spacing64,
+                      height: AppSpacing.spacing64,
+                      semanticLabel: 'InDrive',
                     ),
                   ),
-                  validator: (valor) {
-                    if (valor == null || valor.isEmpty) {
-                      return 'Ingresa tu contraseña';
-                    }
-                    if (registro && valor.length < 6) {
-                      return 'Usa al menos 6 caracteres';
-                    }
-                    return null;
-                  },
-                ),
-
-                const SizedBox(height: AppSpacing.spacing24),
-
-                FilledButton(
-                  onPressed: cargando ? null : iniciarSesionCorreo,
-                  child: Text(registro ? 'Crear cuenta' : 'Iniciar sesión'),
-                ),
-
-                const SizedBox(height: AppSpacing.spacing16),
-
-                // Ingresar con Google
-                OutlinedButton.icon(
-                  onPressed: cargando ? null : iniciarSesionGoogle,
-                  icon: const Icon(Icons.account_circle_outlined),
-                  label: const Text('Continuar con Google'),
-                ),
-
-                TextButton(
-                  onPressed: cargando
-                      ? null
-                      : () => setState(() => registro = !registro),
-                  child: Text(registro ? 'Ya tengo cuenta' : 'Crear cuenta'),
-                ),
-                if (!registro)
-                  TextButton(
-                    onPressed: cargando ? null : recuperarPassword,
-                    child: const Text('Olvidé mi contraseña'),
+                  const SizedBox(height: AppSpacing.spacing16),
+                  Text(
+                    registro ? 'Crea tu cuenta' : 'Bienvenido',
+                    style: textos.headlineLarge,
+                  ),
+                  const SizedBox(height: AppSpacing.spacing8),
+                  const Text(
+                    'Organiza tus viajes y guarda tus lugares favoritos.',
                   ),
 
-                if (cargando) ...[
+                  const SizedBox(height: AppSpacing.spacing24),
+
+                  if (registro) ...[
+                    TextFormField(
+                      controller: nombreController,
+                      enabled: !cargando,
+                      maxLength: 60,
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.givenName],
+                      decoration: const InputDecoration(labelText: 'Nombre'),
+                      validator: validarNombrePersona,
+                    ),
+                    const SizedBox(height: AppSpacing.spacing8),
+                    TextFormField(
+                      controller: apellidoController,
+                      enabled: !cargando,
+                      maxLength: 60,
+                      textCapitalization: TextCapitalization.words,
+                      autofillHints: const [AutofillHints.familyName],
+                      decoration: const InputDecoration(labelText: 'Apellido'),
+                      validator: validarNombrePersona,
+                    ),
+                    const SizedBox(height: AppSpacing.spacing8),
+                    TextFormField(
+                      controller: edadController,
+                      enabled: !cargando,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      maxLength: 3,
+                      decoration: const InputDecoration(labelText: 'Edad'),
+                      validator: validarEdadPersona,
+                    ),
+                    const SizedBox(height: AppSpacing.spacing16),
+                  ],
+
+                  // Ingresar con correo
+
+                  // Correo electrónico
+                  TextFormField(
+                    controller: correoController,
+                    keyboardType: TextInputType.emailAddress,
+                    decoration: const InputDecoration(
+                      labelText: 'Correo electrónico',
+                      prefixIcon: Icon(Icons.email_outlined),
+                    ),
+                    validator: (valor) {
+                      if (valor == null || valor.trim().isEmpty) {
+                        return 'Ingresa tu correo electrónico';
+                      }
+                      if (!valor.contains('@')) {
+                        return 'Escribe un correo válido';
+                      }
+                      return null;
+                    },
+                  ),
+
                   const SizedBox(height: AppSpacing.spacing16),
-                  const Center(child: CircularProgressIndicator()),
+
+                  // Contraseña
+                  TextFormField(
+                    controller: passwordController,
+                    obscureText: !mostrarPassword,
+                    decoration: InputDecoration(
+                      labelText: 'Contraseña',
+                      prefixIcon: const Icon(Icons.lock_outline),
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            mostrarPassword = !mostrarPassword;
+                          });
+                        },
+                        icon: Icon(
+                          mostrarPassword
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                        ),
+                      ),
+                    ),
+                    validator: (valor) {
+                      if (valor == null || valor.isEmpty) {
+                        return 'Ingresa tu contraseña';
+                      }
+                      if (registro && valor.length < 6) {
+                        return 'Usa al menos 6 caracteres';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: AppSpacing.spacing24),
+
+                  FilledButton(
+                    onPressed: cargando ? null : iniciarSesionCorreo,
+                    child: Text(registro ? 'Crear cuenta' : 'Iniciar sesión'),
+                  ),
+
+                  const SizedBox(height: AppSpacing.spacing16),
+
+                  // Ingresar con Google
+                  OutlinedButton.icon(
+                    onPressed: cargando ? null : iniciarSesionGoogle,
+                    icon: const Icon(Icons.account_circle_outlined),
+                    label: const Text('Continuar con Google'),
+                  ),
+
+                  TextButton(
+                    onPressed: cargando
+                        ? null
+                        : () => setState(() => registro = !registro),
+                    child: Text(registro ? 'Ya tengo cuenta' : 'Crear cuenta'),
+                  ),
+                  if (!registro)
+                    TextButton(
+                      onPressed: cargando ? null : recuperarPassword,
+                      child: const Text('Olvidé mi contraseña'),
+                    ),
+
+                  if (cargando) ...[
+                    const SizedBox(height: AppSpacing.spacing16),
+                    const Center(child: CircularProgressIndicator()),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

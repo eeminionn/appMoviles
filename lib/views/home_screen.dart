@@ -2,7 +2,9 @@ import 'dart:math' as math;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:pointer_interceptor/pointer_interceptor.dart';
 
 import '../personas.dart';
 import '../theme/theme.dart';
@@ -226,7 +228,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     alignment: Alignment.bottomRight,
                     child: Icon(
                       icono,
-                      size: AppSpacing.spacing40,
+                      size: AppSize.iconoServicio,
                       color: color,
                     ),
                   ),
@@ -240,7 +242,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget menu() {
-    return Drawer(
+    final panel = Drawer(
       width: MediaQuery.sizeOf(context).width * AppSize.anchoMenu,
       backgroundColor: AppColors.blanco,
       shape: const RoundedRectangleBorder(),
@@ -304,6 +306,8 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+    // En web, el menú debe recibir los clics antes que el mapa HTML.
+    return PointerInterceptor(intercepting: kIsWeb, child: panel);
   }
 
   Widget opcion(IconData icono, String titulo, VoidCallback tocar) {
